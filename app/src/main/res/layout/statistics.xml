@@ -2,18 +2,17 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/main"
+    android:id="@+id/statistics"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#0B0B0E"
-    android:fitsSystemWindows="false"
-    tools:context=".MainActivity">
+    android:fitsSystemWindows="false">
 
     <TextView
         android:id="@+id/title_home"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Logster"
+        android:text="Прогресс"
         android:textSize="40sp"
         android:textStyle="bold"
         android:textColor="#FFFFFF"
@@ -21,22 +20,6 @@
         android:layout_marginTop="60dp"
         android:fontFamily="sans-serif"
         android:layout_alignParentStart="true" />
-    <FrameLayout
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:layout_alignParentEnd="true"
-        android:layout_marginEnd="70dp"
-        android:layout_marginTop="70dp"
-        android:background="@drawable/background_btn"
-        android:onClick="message">
-        <ImageView
-            android:id="@+id/btn_settings"
-            android:layout_width="25dp"
-            android:layout_height="16dp"
-            android:layout_gravity="center"
-            android:src="@drawable/settingss" />
-    </FrameLayout>
-
     <FrameLayout
         android:layout_width="40dp"
         android:layout_height="40dp"
@@ -50,7 +33,7 @@
             android:layout_width="25dp"
             android:layout_height="25dp"
             android:layout_gravity="center"
-            android:src="@drawable/plus" />
+            android:src="@drawable/arrow" />
     </FrameLayout>
 
 
@@ -76,7 +59,7 @@
                 android:layout_height="32dp"
                 android:layout_weight="1"
                 android:src="@drawable/home"
-                android:onClick="message"/>
+                android:onClick="home"/>
             <ImageView
                 android:layout_width="32dp"
                 android:layout_height="32dp"
@@ -88,7 +71,7 @@
                 android:layout_height="32dp"
                 android:layout_weight="1"
                 android:src="@drawable/statistics"
-                android:onClick="statistics"/>
+                android:onClick="message"/>
             <ImageView
                 android:layout_width="32dp"
                 android:layout_height="32dp"

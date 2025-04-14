@@ -4,26 +4,20 @@ import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
-import android.view.Window;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
-import android.widget.Toast;
+import android.widget.TextView;
 
-import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
 
-public class MainActivity extends AppCompatActivity {
 
+public class StatisticsActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        setContentView(R.layout.statistics);
         hideSystemUI();
     }
-
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
@@ -31,7 +25,6 @@ public class MainActivity extends AppCompatActivity {
             hideSystemUI();
         }
     }
-
     private void hideSystemUI() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             getWindow().getInsetsController().hide(WindowInsets.Type.systemBars());
@@ -49,22 +42,14 @@ public class MainActivity extends AppCompatActivity {
             );
         }
     }
-
+    public void home(View view) {
+        Intent intent = new Intent(this, MainActivity.class);
+        startActivity(intent);
+        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+    }
     public void calendar(View view) {
         Intent intent = new Intent(this, CalendarActivity.class);
-        // Запускаем активность
         startActivity(intent);
-        // (Опционально) Добавляем анимацию перехода
         overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
-    }
-    public void statistics(View view) {
-        Intent intent = new Intent(this, StatisticsActivity.class);
-        // Запускаем активность
-        startActivity(intent);
-        // (Опционально) Добавляем анимацию перехода
-        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
-    }
-    public void message(View view) {
-        Toast.makeText(this, "Нажатие обработано", Toast.LENGTH_SHORT).show();
     }
 }
