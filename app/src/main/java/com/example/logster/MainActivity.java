@@ -17,10 +17,15 @@ import androidx.core.view.WindowInsetsCompat;
 
 public class MainActivity extends AppCompatActivity {
 
+    private BottomNavigationManager navManager;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        navManager = new BottomNavigationManager(findViewById(R.id.main), this);
+        navManager.setCurrentActivity("MainActivity");
+
         hideSystemUI();
     }
 
@@ -50,20 +55,17 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    public void calendar(View view) {
-        Intent intent = new Intent(this, CalendarActivity.class);
-        // Запускаем активность
+    @Override
+    public void onBackPressed() {
+        // Сбрасываем выделение всех кнопок в меню
+        navManager.resetButtonSelection();  // вызов метода сброса выделения
+
+        // Переход на главный экран, если была нажата кнопка назад
+        Intent intent = new Intent(this, MainActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);  // очищаем стек
         startActivity(intent);
-        // (Опционально) Добавляем анимацию перехода
-        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
     }
-    public void statistics(View view) {
-        Intent intent = new Intent(this, StatisticsActivity.class);
-        // Запускаем активность
-        startActivity(intent);
-        // (Опционально) Добавляем анимацию перехода
-        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
-    }
+
     public void message(View view) {
         Toast.makeText(this, "Нажатие обработано", Toast.LENGTH_SHORT).show();
     }

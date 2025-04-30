@@ -71,30 +71,34 @@
             android:layout_height="match_parent"
             android:orientation="horizontal"
             android:paddingTop="15dp">
+
             <ImageView
+                android:id="@+id/nav_home"
                 android:layout_width="32dp"
                 android:layout_height="32dp"
                 android:layout_weight="1"
-                android:src="@drawable/home"
-                android:onClick="message"/>
+                android:src="@drawable/home_selector"/>
+
             <ImageView
+                android:id="@+id/nav_calendar"
                 android:layout_width="32dp"
                 android:layout_height="32dp"
                 android:layout_weight="1"
-                android:src="@drawable/calendar"
-                android:onClick="calendar"/>
+                android:src="@drawable/calendar_selector"/>
+
             <ImageView
+                android:id="@+id/nav_statistics"
                 android:layout_width="32dp"
                 android:layout_height="32dp"
                 android:layout_weight="1"
-                android:src="@drawable/statistics"
-                android:onClick="statistics"/>
+                android:src="@drawable/statistics_selector"/>
+
             <ImageView
+                android:id="@+id/nav_chat"
                 android:layout_width="32dp"
                 android:layout_height="32dp"
                 android:layout_weight="1"
-                android:src="@drawable/chat"
-                android:onClick="message"/>
+                android:src="@drawable/chat_selector"/>
         </LinearLayout>
     </FrameLayout>
 </RelativeLayout>
