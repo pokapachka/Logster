@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/addWorkout2"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/rounded_top"
+    android:fontFamily="sans-serif">
+
+    <!-- Ручка сверху -->
+    <View
+        android:layout_width="80dp"
+        android:layout_height="4dp"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="5dp"
+        android:background="@drawable/handle_background" />
+
+    <!-- Кнопка назад -->
+    <FrameLayout
+        android:id="@+id/close"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:layout_marginTop="35dp"
+        android:layout_marginStart="10dp"
+        android:onClick="backSheet2">
+        <ImageView
+            android:id="@+id/btn_plus"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_gravity="center"
+            android:src="@drawable/back" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/head"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Имя"
+        android:textSize="30sp"
+        android:textStyle="bold"
+        android:textColor="#FFFFFF"
+        android:layout_marginStart="15dp"
+        android:layout_marginTop="30dp"
+        android:layout_below="@id/close"/>
+
+    <TextView
+        android:id="@+id/description"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Изменяйте название тренировки как угодно"
+        android:textSize="15sp"
+        android:textColor="#FFFFFF"
+        android:layout_marginStart="15dp"
+        android:layout_marginEnd="15dp"
+        android:layout_marginTop="10dp"
+        android:layout_below="@id/head"/>
+
+    <EditText
+        android:id="@+id/ETworkout_name"
+        android:layout_width="match_parent"
+        android:layout_marginStart="15dp"
+        android:layout_marginEnd="15dp"
+        android:layout_height="wrap_content"
+        android:hint="Тренировка"
+        android:inputType="text"
+        android:textSize="20sp"
+        android:textColor="#ABACB5"
+        android:layout_marginTop="30dp"
+        android:layout_below="@id/description"/>
+
+    <TextView
+        android:onClick="addWorkout3"
+        android:id="@+id/continue_btn"
+        android:layout_width="120dp"
+        android:layout_height="50dp"
+        android:layout_alignParentEnd="true"
+        android:background="@drawable/enter_btn2"
+        android:gravity="center"
+        android:text="продолжить"
+        android:textColor="@color/black"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        android:layout_marginTop="30dp"
+        android:layout_marginEnd="15dp"
+        android:layout_below="@id/ETworkout_name"/>
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+</RelativeLayout>

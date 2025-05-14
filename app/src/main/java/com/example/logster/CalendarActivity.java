@@ -6,12 +6,15 @@ import android.icu.util.ULocale;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.DisplayMetrics;
+import android.util.Log;
 import android.view.GestureDetector;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
+import android.view.animation.Animation;
+import android.view.animation.AnimationUtils;
 import android.widget.GridLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -42,14 +45,14 @@ public class CalendarActivity extends AppCompatActivity {
         navManager = new BottomNavigationManager(findViewById(R.id.calendar), this);
         navManager.setCurrentActivity("CalendarActivity");
 
+        boolean goToToday = getIntent().getBooleanExtra("goToToday", false);
+        if (goToToday) {
+            currentCalendar = Calendar.getInstance();
+        }
         monthYearText = findViewById(R.id.monthYearText);
         calendarGrid = findViewById(R.id.calendarGrid);
         currentCalendar = Calendar.getInstance();
-
-        // Инициализация жестов
         gestureDetector = new GestureDetector(this, new SwipeGestureListener());
-
-        // Настройка ScrollView для обработки жестов
         ScrollView scrollView = findViewById(R.id.scrollView);
         scrollView.setOnTouchListener(new View.OnTouchListener() {
             @Override
@@ -58,34 +61,23 @@ public class CalendarActivity extends AppCompatActivity {
                 return false;
             }
         });
-
-        // Первоначальная загрузка календаря
         updateCalendar();
         hideSystemUI();
     }
 
     private void updateCalendar() {
-        // 1. Обновляем заголовок
         String monthYear = getMonthNameNominative(currentCalendar) + " " + currentCalendar.get(Calendar.YEAR);
         monthYearText.setText(monthYear);
 
-        // 2. Очищаем предыдущие дни
         calendarGrid.removeAllViews();
 
-        // 3. Настраиваем календарь на первый день месяца
         currentCalendar.set(Calendar.DAY_OF_MONTH, 1);
         int firstDayOfWeek = currentCalendar.get(Calendar.DAY_OF_WEEK);
         int daysInMonth = currentCalendar.getActualMaximum(Calendar.DAY_OF_MONTH);
-
-        // 4. Вычисляем смещение для первого дня (для России - понедельник первый)
-        int offset = (firstDayOfWeek + 5) % 7; // Оптимизированный расчет для понедельника
-
-        // 5. Добавляем пустые ячейки в начале
+        int offset = (firstDayOfWeek + 5) % 7;
         for (int i = 0; i < offset; i++) {
             addDayToCalendar("");
         }
-
-        // 6. Добавляем дни месяца
         Calendar today = Calendar.getInstance();
         for (int day = 1; day <= daysInMonth; day++) {
             boolean isToday = (day == today.get(Calendar.DAY_OF_MONTH) &&
@@ -93,10 +85,8 @@ public class CalendarActivity extends AppCompatActivity {
                     (currentCalendar.get(Calendar.YEAR) == today.get(Calendar.YEAR)));
             addDayToCalendar(String.valueOf(day), isToday);
         }
-
-        // 7. Добавляем пустые ячейки в конце (всего 6 недель)
         int totalCells = offset + daysInMonth;
-        int remainingCells = 42 - totalCells; // 6 недель * 7 дней
+        int remainingCells = 42 - totalCells;
         for (int i = 0; i < remainingCells; i++) {
             addDayToCalendar("");
         }
@@ -109,28 +99,20 @@ public class CalendarActivity extends AppCompatActivity {
     private void addDayToCalendar(String text, boolean isToday) {
         TextView dayView = new TextView(this);
         GridLayout.LayoutParams params = new GridLayout.LayoutParams();
-
-        // Рассчитываем ширину ячейки
         DisplayMetrics metrics = getResources().getDisplayMetrics();
-        int cellWidth = metrics.widthPixels / 7; // Ровно 1/7 экрана
-
-        // Настройка параметров ячейки
+        int cellWidth = metrics.widthPixels / 7;
         params.width = cellWidth;
-        params.height = (int) (cellWidth * 1.2); // Немного выше, чем ширина
+        params.height = (int) (cellWidth * 1.2);
         params.setGravity(Gravity.CENTER);
-
         dayView.setLayoutParams(params);
         dayView.setText(text);
         dayView.setTextSize(16);
         dayView.setGravity(Gravity.CENTER);
         dayView.setTextColor(Color.WHITE);
-
-        // Стиль для текущего дня
         if (isToday) {
             dayView.setBackgroundResource(R.drawable.current_day);
             dayView.setTextColor(Color.BLACK);
         }
-
         calendarGrid.addView(dayView);
     }
 
@@ -143,17 +125,33 @@ public class CalendarActivity extends AppCompatActivity {
             try {
                 float diffY = e2.getY() - e1.getY();
                 if (Math.abs(diffY) > SWIPE_THRESHOLD && Math.abs(velocityY) > SWIPE_VELOCITY_THRESHOLD) {
-                    if (diffY > 0) {
-                        // Свайп вниз - предыдущий месяц
-                        showPreviousMonth();
-                    } else {
-                        // Свайп вверх - следующий месяц
-                        showNextMonth();
-                    }
+                    Animation fadeOut = AnimationUtils.loadAnimation(CalendarActivity.this, android.R.anim.fade_out);
+                    fadeOut.setDuration(200);
+                    calendarGrid.startAnimation(fadeOut);
+
+                    fadeOut.setAnimationListener(new Animation.AnimationListener() {
+                        @Override
+                        public void onAnimationStart(Animation animation) {}
+
+                        @Override
+                        public void onAnimationEnd(Animation animation) {
+                            if (diffY > 0) {
+                                showPreviousMonth();
+                            } else {
+                                showNextMonth();
+                            }
+                            Animation fadeIn = AnimationUtils.loadAnimation(CalendarActivity.this, android.R.anim.fade_in);
+                            fadeIn.setDuration(200);
+                            calendarGrid.startAnimation(fadeIn);
+                        }
+
+                        @Override
+                        public void onAnimationRepeat(Animation animation) {}
+                    });
                     return true;
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                Log.e("SwipeGesture", "Swipe error", e);
             }
             return false;
         }
@@ -183,6 +181,32 @@ public class CalendarActivity extends AppCompatActivity {
             hideSystemUI();
         }
     }
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        boolean goToToday = intent.getBooleanExtra("goToToday", false);
+        if (goToToday) {
+            currentCalendar = Calendar.getInstance();
+            Animation fadeOut = AnimationUtils.loadAnimation(CalendarActivity.this, android.R.anim.fade_out);
+            fadeOut.setDuration(200);
+            calendarGrid.startAnimation(fadeOut);
+            fadeOut.setAnimationListener(new Animation.AnimationListener() {
+                @Override
+                public void onAnimationStart(Animation animation) {}
+
+                @Override
+                public void onAnimationEnd(Animation animation) {
+                    updateCalendar();
+                    Animation fadeIn = AnimationUtils.loadAnimation(CalendarActivity.this, android.R.anim.fade_in);
+                    fadeIn.setDuration(200);
+                    calendarGrid.startAnimation(fadeIn);
+                }
+                @Override
+                public void onAnimationRepeat(Animation animation) {}
+            });
+        }
+    }
+
     private void hideSystemUI() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             getWindow().getInsetsController().hide(WindowInsets.Type.systemBars());

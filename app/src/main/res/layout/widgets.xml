@@ -1,0 +1,266 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/bottomSheetContainer"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/rounded_top"
+    android:fontFamily="sans-serif">
+
+    <View
+    android:layout_width="80dp"
+    android:layout_height="4dp"
+    android:layout_centerHorizontal="true"
+    android:layout_marginTop="5dp"
+    android:background="@drawable/handle_background"/>
+
+    <FrameLayout
+        android:id="@+id/close"
+    android:layout_width="30dp"
+    android:layout_height="30dp"
+    android:layout_marginTop="35dp"
+        android:layout_marginStart="10dp"
+    android:onClick="closeSheet">
+    <ImageView
+        android:id="@+id/btn_plus"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_gravity="center"
+        android:src="@drawable/arrowdown" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@id/add"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Добавить"
+        android:textSize="30sp"
+        android:textStyle="bold"
+        android:textColor="#FFFFFF"
+        android:layout_marginStart="15dp"
+        android:layout_marginTop="30dp"
+        android:layout_below="@id/close"/>
+
+    <TextView
+        android:id="@+id/description"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Создавайте тренировки, получайте индивидуальные тренировки и добавляйте виджеты на приборную панель"
+        android:textSize="15sp"
+        android:textColor="#FFFFFF"
+        android:layout_marginStart="15dp"
+        android:layout_marginEnd="15dp"
+        android:layout_marginTop="10dp"
+        android:layout_below="@id/add"/>
+
+    <FrameLayout
+        android:id="@+id/addtrenings"
+        android:layout_width="match_parent"
+        android:layout_height="65dp"
+        android:layout_marginTop="30dp"
+        android:layout_below="@id/description"
+        android:layout_marginStart="10dp"
+        android:onClick="addWorkout"
+        android:layout_marginEnd="15dp">
+
+        <ImageView
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:background="@drawable/plus"
+            android:layout_gravity="center_vertical"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Тренировка"
+            android:textSize="15sp"
+            android:textColor="#FFFFFF"
+            android:layout_marginStart="55dp"
+            android:layout_marginTop="15dp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Создавайте свою тренировку"
+            android:textSize="15sp"
+            android:textColor="#ABACB5"
+            android:layout_marginStart="55dp"
+            android:layout_marginTop="35dp"/>
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <TextView
+                android:layout_width="80dp"
+                android:layout_height="30dp"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:background="@drawable/enter_btn3"
+                android:gravity="center"
+                android:text="создать"
+                android:textColor="#FFFFFF"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+        </RelativeLayout>
+    </FrameLayout>
+
+    <FrameLayout
+        android:id="@+id/personalTraining"
+        android:layout_width="match_parent"
+        android:layout_height="65dp"
+        android:layout_marginTop="0dp"
+        android:layout_below="@id/addtrenings"
+        android:layout_marginStart="10dp"
+        android:onClick="addWorkout"
+        android:layout_marginEnd="15dp">
+
+        <ImageView
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:background="@drawable/stars"
+            android:layout_gravity="center_vertical"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Интеллектуальная тренировка"
+            android:textSize="15sp"
+            android:textColor="#FFFFFF"
+            android:layout_marginStart="55dp"
+            android:layout_marginTop="15dp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Создавайте тренировку с ИИ"
+            android:textSize="15sp"
+            android:textColor="#ABACB5"
+            android:layout_marginStart="55dp"
+            android:layout_marginTop="35dp"/>
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <TextView
+                android:layout_width="80dp"
+                android:layout_height="30dp"
+                android:text="создать"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:background="@drawable/enter_btn3"
+                android:textColor="#FFFFFF"
+                android:gravity="center"
+                android:layout_centerVertical="true"
+                android:layout_alignParentEnd="true" />
+        </RelativeLayout>
+    </FrameLayout>
+
+    <FrameLayout
+        android:id="@+id/bodyMetrics"
+        android:layout_width="match_parent"
+        android:layout_height="65dp"
+        android:layout_marginTop="0dp"
+        android:layout_below="@id/personalTraining"
+        android:layout_marginStart="10dp"
+        android:onClick="message"
+        android:layout_marginEnd="15dp">
+
+        <ImageView
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:background="@drawable/body"
+            android:layout_gravity="center_vertical"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Показатели тела"
+            android:textSize="15sp"
+            android:textColor="#FFFFFF"
+            android:layout_marginStart="55dp"
+            android:layout_marginTop="15dp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Отслеживайте изменения тела"
+            android:textSize="15sp"
+            android:textColor="#ABACB5"
+            android:layout_marginStart="55dp"
+            android:layout_marginTop="35dp"/>
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <TextView
+                android:layout_width="90dp"
+                android:layout_height="30dp"
+                android:text="добавить"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:background="@drawable/enter_btn3"
+                android:textColor="#FFFFFF"
+                android:gravity="center"
+                android:layout_centerVertical="true"
+                android:layout_alignParentEnd="true" />
+        </RelativeLayout>
+    </FrameLayout>
+
+    <FrameLayout
+        android:id="@+id/folders"
+        android:layout_width="match_parent"
+        android:layout_height="65dp"
+        android:layout_marginTop="0dp"
+        android:layout_below="@id/bodyMetrics"
+        android:layout_marginStart="10dp"
+        android:onClick="message"
+        android:layout_marginEnd="15dp">
+
+        <ImageView
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:background="@drawable/folder"
+            android:layout_gravity="center_vertical"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Папка"
+            android:textSize="15sp"
+            android:textColor="#FFFFFF"
+            android:layout_marginStart="55dp"
+            android:layout_marginTop="15dp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Отслеживайте изменения тела"
+            android:textSize="15sp"
+            android:textColor="#ABACB5"
+            android:layout_marginStart="55dp"
+            android:layout_marginTop="35dp"/>
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <TextView
+                android:layout_width="90dp"
+                android:layout_height="30dp"
+                android:text="добавить"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:background="@drawable/enter_btn3"
+                android:textColor="#FFFFFF"
+                android:gravity="center"
+                android:layout_centerVertical="true"
+                android:layout_alignParentEnd="true" />
+        </RelativeLayout>
+    </FrameLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+</RelativeLayout>

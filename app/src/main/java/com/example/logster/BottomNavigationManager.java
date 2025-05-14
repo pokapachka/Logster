@@ -22,7 +22,7 @@ public class BottomNavigationManager {
     private ImageView navChat;
     private Context context;
 
-    private ImageView currentActiveButton; // Отслеживаем текущую активную кнопку
+    private ImageView currentActiveButton;
 
     public BottomNavigationManager(View rootView, Context context) {
         this.context = context;
@@ -30,12 +30,9 @@ public class BottomNavigationManager {
         navCalendar = rootView.findViewById(R.id.nav_calendar);
         navStatistics = rootView.findViewById(R.id.nav_statistics);
         navChat = rootView.findViewById(R.id.nav_chat);
-
-        // Инициализируем текущую активную кнопку
-        currentActiveButton = navHome; // По умолчанию кнопка "Home" активна
-
+        currentActiveButton = navHome;
         setupListeners();
-        setActiveButton(currentActiveButton); // Устанавливаем выделение для "Home" на старте
+        setActiveButton(currentActiveButton);
     }
 
     private void setupListeners() {
@@ -43,7 +40,11 @@ public class BottomNavigationManager {
             if (currentActiveButton != navHome) {
                 setActiveButton(navHome);
                 Intent intent = new Intent(context, MainActivity.class);
-                context.startActivity(intent);
+                ActivityOptions options = ActivityOptions.makeCustomAnimation(context,
+                        android.R.anim.fade_in,
+                        android.R.anim.fade_out
+                );
+                context.startActivity(intent, options.toBundle());
             }
         });
 
@@ -51,6 +52,16 @@ public class BottomNavigationManager {
             if (currentActiveButton != navCalendar) {
                 setActiveButton(navCalendar);
                 Intent intent = new Intent(context, CalendarActivity.class);
+                intent.putExtra("goToToday", true);
+                ActivityOptions options = ActivityOptions.makeCustomAnimation(context,
+                        android.R.anim.fade_in,
+                        android.R.anim.fade_out
+                );
+                context.startActivity(intent, options.toBundle());
+            } else {
+                Intent intent = new Intent(context, CalendarActivity.class);
+                intent.putExtra("goToToday", true);
+                intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
                 context.startActivity(intent);
             }
         });
@@ -59,7 +70,11 @@ public class BottomNavigationManager {
             if (currentActiveButton != navStatistics) {
                 setActiveButton(navStatistics);
                 Intent intent = new Intent(context, StatisticsActivity.class);
-                context.startActivity(intent);
+                ActivityOptions options = ActivityOptions.makeCustomAnimation(context,
+                        android.R.anim.fade_in,
+                        android.R.anim.fade_out
+                );
+                context.startActivity(intent, options.toBundle());
             }
         });
 
@@ -67,64 +82,42 @@ public class BottomNavigationManager {
             if (currentActiveButton != navChat) {
                 setActiveButton(navChat);
                 Intent intent = new Intent(context, ChatActivity.class);
-                context.startActivity(intent);
+                ActivityOptions options = ActivityOptions.makeCustomAnimation(context,
+                        android.R.anim.fade_in,
+                        android.R.anim.fade_out
+                );
+                context.startActivity(intent, options.toBundle());
             }
         });
     }
 
     public void setActiveButton(ImageView activeButton) {
-        // Сбрасываем выделение всех кнопок
         navHome.setSelected(false);
         navCalendar.setSelected(false);
         navStatistics.setSelected(false);
         navChat.setSelected(false);
-
-        // Плавное затемнение неактивных кнопок
         animateButton(navHome, false);
         animateButton(navCalendar, false);
         animateButton(navStatistics, false);
         animateButton(navChat, false);
-
-        // Устанавливаем выделение активной кнопки
         activeButton.setSelected(true);
-
-        // Плавное высветление активной кнопки
         animateButton(activeButton, true);
-
-        // Обновляем текущую активную кнопку
         currentActiveButton = activeButton;
-    }
-
-    // Сбрасываем выделение всех кнопок
-    public void resetButtonSelection() {
-        navHome.setSelected(false);
-        navCalendar.setSelected(false);
-        navStatistics.setSelected(false);
-        navChat.setSelected(false);
-
-        // Сбрасываем анимацию на все кнопки
-        animateButton(navHome, false);
-        animateButton(navCalendar, false);
-        animateButton(navStatistics, false);
-        animateButton(navChat, false);
     }
 
     private void animateButton(ImageView button, boolean isSelected) {
         float scale = isSelected ? 1.1f : 1.0f;
-
-        // Плавная анимация изменения масштаба
         ObjectAnimator scaleX = ObjectAnimator.ofFloat(button, "scaleX", scale);
         ObjectAnimator scaleY = ObjectAnimator.ofFloat(button, "scaleY", scale);
 
         AnimatorSet animatorSet = new AnimatorSet();
         animatorSet.playTogether(scaleX, scaleY);
-        animatorSet.setDuration(400);  // Длительность анимации
-        animatorSet.setInterpolator(new DecelerateInterpolator()); // Плавное замедление в конце анимации
+        animatorSet.setDuration(400);
+        animatorSet.setInterpolator(new DecelerateInterpolator());
         animatorSet.start();
     }
 
     public void setCurrentActivity(String activityName) {
-        // Проверяем, на каком экране мы находимся, и устанавливаем нужное выделение
         switch (activityName) {
             case "MainActivity":
                 setActiveButton(navHome);
@@ -137,6 +130,30 @@ public class BottomNavigationManager {
                 break;
             case "ChatActivity":
                 setActiveButton(navChat);
+                break;
+        }
+    }
+    public void forceSetActiveButton(String activityName) {
+        navHome.setSelected(false);
+        navCalendar.setSelected(false);
+        navStatistics.setSelected(false);
+        navChat.setSelected(false);
+        switch (activityName) {
+            case "MainActivity":
+                navHome.setSelected(true);
+                currentActiveButton = navHome;
+                break;
+            case "CalendarActivity":
+                navCalendar.setSelected(true);
+                currentActiveButton = navCalendar;
+                break;
+            case "StatisticsActivity":
+                navStatistics.setSelected(true);
+                currentActiveButton = navStatistics;
+                break;
+            case "ChatActivity":
+                navChat.setSelected(true);
+                currentActiveButton = navChat;
                 break;
         }
     }

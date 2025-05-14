@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/addWorkout3"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/rounded_top"
+    android:fontFamily="sans-serif">
+
+    <!-- Ручка сверху -->
+    <View
+        android:layout_width="80dp"
+        android:layout_height="4dp"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="5dp"
+        android:background="@drawable/handle_background" />
+
+    <!-- Кнопка назад -->
+    <FrameLayout
+        android:id="@+id/close"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:layout_marginTop="35dp"
+        android:layout_marginStart="10dp"
+        android:onClick="backSheet3">
+        <ImageView
+            android:id="@+id/btn_plus"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_gravity="center"
+            android:src="@drawable/back" />
+    </FrameLayout>
+
+    <!-- Заголовок "Дни недели" -->
+    <TextView
+        android:id="@+id/title_days"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Дни недели"
+        android:textColor="#FFFFFF"
+        android:textSize="30sp"
+        android:textStyle="bold"
+        android:layout_marginStart="15dp"
+        android:layout_marginTop="30dp"
+        android:layout_below="@id/close" />
+
+    <!-- Список дней недели (без ScrollView) -->
+    <com.google.android.flexbox.FlexboxLayout
+        android:id="@+id/days_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/title_days"
+        android:selectable="true"
+        android:layout_marginTop="10dp"
+        android:layout_marginStart="15dp"
+        android:layout_marginEnd="15dp"
+        android:layout_marginBottom="70dp"
+        app:flexWrap="wrap"
+        app:justifyContent="flex_start"
+        app:alignItems="flex_start">
+
+        <!-- Понедельник -->
+        <TextView
+            android:id="@+id/day_monday"
+            android:layout_width="wrap_content"
+            android:layout_height="35dp"
+            android:background="@drawable/enter_btn"
+            android:gravity="center"
+            android:text="Понедельник"
+            android:textColor="@color/black"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:layout_marginEnd="8dp"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Вторник -->
+        <TextView
+            android:id="@+id/day_tuesday"
+            android:layout_width="wrap_content"
+            android:layout_height="35dp"
+            android:background="@drawable/enter_btn"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:gravity="center"
+            android:text="Вторник"
+            android:textColor="@color/black"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:layout_marginEnd="8dp"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Среда -->
+        <TextView
+            android:id="@+id/day_wednesday"
+            android:layout_width="wrap_content"
+            android:layout_height="35dp"
+            android:background="@drawable/enter_btn"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:gravity="center"
+            android:text="Среда"
+            android:textColor="@color/black"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:layout_marginEnd="8dp"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Четверг -->
+        <TextView
+            android:id="@+id/day_thursday"
+            android:layout_width="wrap_content"
+            android:layout_height="35dp"
+            android:background="@drawable/enter_btn"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:gravity="center"
+            android:text="Четверг"
+            android:textColor="@color/black"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:layout_marginEnd="8dp"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Пятница -->
+        <TextView
+            android:id="@+id/day_friday"
+            android:layout_width="wrap_content"
+            android:layout_height="35dp"
+            android:background="@drawable/enter_btn"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:gravity="center"
+            android:text="Пятница"
+            android:textColor="@color/black"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:layout_marginEnd="8dp"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Суббота -->
+        <TextView
+            android:id="@+id/day_saturday"
+            android:layout_width="wrap_content"
+            android:layout_height="35dp"
+            android:background="@drawable/enter_btn"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:gravity="center"
+            android:text="Суббота"
+            android:textColor="@color/black"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:layout_marginEnd="8dp"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Воскресенье -->
+        <TextView
+            android:id="@+id/day_sunday"
+            android:layout_width="wrap_content"
+            android:layout_height="35dp"
+            android:background="@drawable/enter_btn"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:gravity="center"
+            android:text="Воскресенье"
+            android:textColor="@color/black"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:layout_marginEnd="8dp"
+            android:layout_marginBottom="8dp" />
+
+    </com.google.android.flexbox.FlexboxLayout>
+
+    <!-- Кнопка "Продолжить" -->
+    <TextView
+        android:id="@+id/continue_btn"
+        android:layout_width="120dp"
+        android:layout_height="50dp"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentBottom="true"
+        android:layout_marginEnd="15dp"
+        android:layout_marginBottom="15dp"
+        android:background="@drawable/enter_btn2"
+        android:gravity="center"
+        android:text="продолжить"
+        android:textColor="@color/black"
+        android:textSize="15sp"
+        android:textStyle="bold" />
+
+</RelativeLayout>

@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/addWorkout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/rounded_top"
+    android:fontFamily="sans-serif">
+
+    <!-- Ручка сверху -->
+    <View
+        android:layout_width="80dp"
+        android:layout_height="4dp"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="5dp"
+        android:background="@drawable/handle_background" />
+
+    <!-- Кнопка назад -->
+    <FrameLayout
+        android:id="@+id/close"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:layout_marginTop="35dp"
+        android:layout_marginStart="10dp"
+        android:onClick="backSheet">
+        <ImageView
+            android:id="@+id/btn_plus"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_gravity="center"
+            android:src="@drawable/back" />
+    </FrameLayout>
+
+    <!-- Область прокрутки с тренировками -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/close"
+        android:layout_marginTop="20dp">
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <!-- Верхняя линия -->
+            <View
+                android:id="@+id/top_line"
+                android:layout_width="match_parent"
+                android:layout_height="2dp"
+                android:layout_marginStart="15dp"
+                android:layout_marginEnd="15dp"
+                android:layout_marginTop="200dp"
+                android:background="#AAAAAA" />
+
+            <!-- Нижняя линия -->
+            <View
+                android:id="@+id/bottom_line"
+                android:layout_width="match_parent"
+                android:layout_height="2dp"
+                android:layout_marginStart="15dp"
+                android:layout_marginEnd="15dp"
+                android:layout_below="@id/top_line"
+                android:layout_marginTop="36dp"
+                android:background="#AAAAAA" />
+
+            <!-- Картинка между линиями, справа -->
+            <ImageView
+                android:id="@+id/center_arrow"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_alignTop="@id/top_line"
+                android:layout_alignParentEnd="true"
+                android:layout_marginEnd="10dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:src="@drawable/continue_selector" />
+        </RelativeLayout>
+
+        <ScrollView
+            android:id="@+id/trainingScrollView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fillViewport="true"
+            android:layout_marginRight="50dp"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:id="@+id/trainingList"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center_horizontal"
+                android:paddingTop="210dp"
+                android:paddingBottom="550dp">
+
+                <!-- Унифицированный стиль для всех -->
+                <TextView
+                    android:id="@+id/custom"
+                    android:text="Своя"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:gravity="start|center_vertical"
+                    android:paddingStart="15dp"
+                    android:textColor="@drawable/selected_item"
+                    android:textSize="25sp" />
+
+                <TextView
+                    android:id="@+id/fullbudy"
+                    android:text="Фуллбади"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:gravity="start|center_vertical"
+                    android:paddingStart="15dp"
+                    android:textColor="@drawable/selected_item"
+                    android:textSize="25sp" />
+
+                <TextView
+                    android:id="@+id/upperbudy"
+                    android:text="Верхняя часть"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:gravity="start|center_vertical"
+                    android:paddingStart="15dp"
+                    android:textColor="@drawable/selected_item"
+                    android:textSize="25sp" />
+
+                <TextView
+                    android:id="@+id/legs"
+                    android:text="Ноги"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:gravity="start|center_vertical"
+                    android:paddingStart="15dp"
+                    android:textColor="@drawable/selected_item"
+                    android:textSize="25sp" />
+
+                <TextView
+                    android:id="@+id/back"
+                    android:text="Спина"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:gravity="start|center_vertical"
+                    android:paddingStart="15dp"
+                    android:textColor="@drawable/selected_item"
+                    android:textSize="25sp" />
+
+                <TextView
+                    android:id="@+id/chest"
+                    android:text="Грудь"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:gravity="start|center_vertical"
+                    android:paddingStart="15dp"
+                    android:textColor="@drawable/selected_item"
+                    android:textSize="25sp" />
+
+                <TextView
+                    android:id="@+id/shoulders"
+                    android:text="Плечи"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:gravity="start|center_vertical"
+                    android:paddingStart="15dp"
+                    android:textColor="@drawable/selected_item"
+                    android:textSize="25sp" />
+
+                <TextView
+                    android:id="@+id/bicep"
+                    android:text="Бицепс"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:gravity="start|center_vertical"
+                    android:paddingStart="15dp"
+                    android:textColor="@drawable/selected_item"
+                    android:textSize="25sp" />
+
+                <TextView
+                    android:id="@+id/tricep"
+                    android:text="Трицепс"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:gravity="start|center_vertical"
+                    android:paddingStart="15dp"
+                    android:textColor="@drawable/selected_item"
+                    android:textSize="25sp" />
+
+                <TextView
+                    android:id="@+id/core"
+                    android:text="Пресс"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:gravity="start|center_vertical"
+                    android:paddingStart="15dp"
+                    android:textColor="@drawable/selected_item"
+                    android:textSize="25sp" />
+
+                <TextView
+                    android:id="@+id/cardio"
+                    android:text="Кардио"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:gravity="start|center_vertical"
+                    android:paddingStart="15dp"
+                    android:textColor="@drawable/selected_item"
+                    android:textSize="25sp" />
+
+            </LinearLayout>
+        </ScrollView>
+
+        <FrameLayout
+            android:id="@+id/workout_description_container"
+            android:layout_width="match_parent"
+            android:layout_height="120dp"
+            android:layout_gravity="bottom"
+            android:background="#0B0B0E">
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="2dp"
+                android:layout_gravity="top"
+                android:background="#141418" />
+
+            <TextView
+                android:id="@+id/workout_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="15dp"
+                android:layout_marginTop="10dp"
+                android:layout_marginEnd="15dp"
+                android:text="Заголовок"
+                android:textColor="#FFFFFF"
+                android:textSize="20sp"
+                android:gravity="top|start" />
+            <TextView
+                android:id="@+id/workout_description"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_marginStart="15dp"
+                android:layout_marginTop="40dp"
+                android:layout_marginEnd="15dp"
+                android:text="Описание"
+                android:textColor="#ABACB5"
+                android:textSize="20sp"
+                android:gravity="top|start"/>
+        </FrameLayout>
+    </FrameLayout>
+
+</RelativeLayout>

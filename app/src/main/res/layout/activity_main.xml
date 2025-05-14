@@ -9,51 +9,83 @@
     android:fitsSystemWindows="false"
     tools:context=".MainActivity">
 
-    <TextView
-        android:id="@+id/title_home"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Logster"
-        android:textSize="40sp"
-        android:textStyle="bold"
-        android:textColor="#FFFFFF"
-        android:layout_marginStart="20dp"
-        android:layout_marginTop="60dp"
-        android:fontFamily="sans-serif"
-        android:layout_alignParentStart="true" />
-    <FrameLayout
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:layout_alignParentEnd="true"
-        android:layout_marginEnd="70dp"
-        android:layout_marginTop="70dp"
-        android:background="@drawable/background_btn"
-        android:onClick="message">
-        <ImageView
-            android:id="@+id/btn_settings"
-            android:layout_width="25dp"
-            android:layout_height="16dp"
-            android:layout_gravity="center"
-            android:src="@drawable/settingss" />
-    </FrameLayout>
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true">
 
-    <FrameLayout
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:layout_alignParentEnd="true"
-        android:layout_marginEnd="20dp"
-        android:layout_marginTop="70dp"
-        android:background="@drawable/background_btn"
-        android:onClick="message">
-        <ImageView
-            android:id="@+id/btn_plus"
-            android:layout_width="25dp"
-            android:layout_height="25dp"
-            android:layout_gravity="center"
-            android:src="@drawable/plus" />
-    </FrameLayout>
+        <LinearLayout
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
 
+            <!-- Шапка -->
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="60dp"
+                android:paddingStart="20dp"
+                android:paddingEnd="20dp">
 
+                <TextView
+                    android:id="@+id/title_home"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Logster"
+                    android:textSize="40sp"
+                    android:textStyle="bold"
+                    android:textColor="#FFFFFF"
+                    android:fontFamily="sans-serif"
+                    android:layout_alignParentStart="true" />
+
+                <FrameLayout
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_alignParentEnd="true"
+                    android:layout_marginEnd="50dp"
+                    android:background="@drawable/background_btn"
+                    android:layout_marginTop="10dp"
+                    android:layout_gravity="end"
+                    android:layout_alignTop="@id/title_home">
+
+                    <ImageView
+                        android:id="@+id/btn_settings"
+                        android:layout_width="25dp"
+                        android:layout_height="16dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/settingss" />
+                </FrameLayout>
+
+                <FrameLayout
+                    android:id="@+id/plus"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_alignParentEnd="true"
+                    android:layout_marginTop="10dp"
+                    android:layout_alignTop="@id/title_home"
+                    android:layout_gravity="end"
+                    android:background="@drawable/background_btn"
+                    android:onClick="addWidgets">
+
+                    <ImageView
+                        android:id="@+id/btn_plus"
+                        android:layout_width="25dp"
+                        android:layout_height="25dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/plus" />
+                </FrameLayout>
+            </FrameLayout>
+
+            <!-- RecyclerView для отображения виджетов -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/workout_recycler_view"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:paddingTop="20dp"
+                android:paddingBottom="20dp"/>
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
 
     <FrameLayout
         android:id="@+id/bottom_navigation"
