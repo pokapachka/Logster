@@ -313,7 +313,7 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
 
                     // Сброс состояния выбора
                     dayTextView.setTag(false);
-                    dayTextView.getBackground().setTint(COLOR_UNSELECTED); // Верни цвет к исходному
+                    dayTextView.getBackground().setTint(COLOR_UNSELECTED);
 
                     dayTextView.setOnClickListener(v -> {
                         boolean isSelected = (boolean) dayTextView.getTag();
@@ -393,8 +393,7 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
     }
 
     public String getNearestDay(List<String> days) {
-        // Текущая дата (14 мая 2025 года)
-        LocalDate today = LocalDate.of(2025, 5, 14);
+        LocalDate today = LocalDate.now();
         DayOfWeek todayDayOfWeek = today.getDayOfWeek();
 
         // Маппинг русских названий дней на DayOfWeek

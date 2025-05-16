@@ -83,7 +83,7 @@ public class BottomSheets {
         });
         animator.start();
         setSwipeListener();
-        isShowing = true; // Set flag to true when shown
+        isShowing = true;
     }
 
     public void hide(Runnable onHidden) {
