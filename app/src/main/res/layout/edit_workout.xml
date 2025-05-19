@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/edit_workout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/rounded_top"
+    android:fontFamily="sans-serif">
+
+    <!-- Ручка сверху -->
+    <View
+        android:layout_width="80dp"
+        android:layout_height="4dp"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="5dp"
+        android:background="@drawable/handle_background" />
+
+    <!-- Кнопка назад -->
+    <FrameLayout
+        android:id="@+id/close"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:layout_marginTop="35dp"
+        android:layout_marginStart="10dp"
+        android:onClick="backSheetEditWorkout">
+        <ImageView
+            android:id="@+id/btn_plus"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_gravity="center"
+            android:src="@drawable/arrowdown"/>
+    </FrameLayout>
+
+    <!-- Заголовок -->
+    <TextView
+        android:id="@+id/title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Имя"
+        android:textSize="30sp"
+        android:textStyle="bold"
+        android:textColor="#FFFFFF"
+        android:layout_marginStart="15dp"
+        android:layout_marginTop="30dp"
+        android:layout_below="@id/close"/>
+
+    <!-- Описание -->
+    <TextView
+        android:id="@+id/description"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Настройте эту тренировку, добавив упражнения"
+        android:textColor="#FFFFFF"
+        android:textSize="15sp"
+        android:layout_marginStart="15dp"
+        android:layout_marginEnd="15dp"
+        android:layout_marginTop="10dp"
+        android:layout_below="@id/title" />
+
+
+
+    <!-- Область прокрутки (оставлена пустой для будущих упражнений) -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginTop="20dp">
+
+    </FrameLayout>
+
+</RelativeLayout>

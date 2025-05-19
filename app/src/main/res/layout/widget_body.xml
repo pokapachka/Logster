@@ -11,13 +11,12 @@
 
     <!-- Цифра для количества прошедших тренировок (вверху) -->
     <TextView
-        android:id="@+id/workout_count"
+        android:id="@+id/countBodyMetrics"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignParentTop="true"
-        android:layout_marginTop="20dp"
+        android:layout_marginTop="60dp"
         android:layout_marginStart="40dp"
-        android:text="1"
+        android:text="Кг"
         android:textSize="40sp"
         android:textColor="#FFFFFF"
         android:textStyle="bold" />
@@ -30,29 +29,16 @@
         android:layout_marginRight="20dp"
         android:background="@drawable/settingwidget"/>
 
-    <!-- Название тренировки (внизу) -->
-    <TextView
-        android:id="@+id/workout_name"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:layout_marginBottom="40dp"
-        android:layout_marginStart="20dp"
-        android:layout_marginEnd="10dp"
-        android:text="Название тренировки"
-        android:textSize="15sp"
-        android:textColor="#FFFFFF" />
-
     <!-- Ближайший день (внизу, под названием тренировки) -->
     <TextView
-        android:id="@+id/workout_day"
+        android:id="@+id/notes"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
         android:layout_marginBottom="20dp"
         android:layout_marginStart="20dp"
         android:layout_marginEnd="10dp"
-        android:text="Ближайший день"
+        android:text="Записано сегодня"
         android:textSize="15sp"
         android:textColor="#ABACB5" />
 

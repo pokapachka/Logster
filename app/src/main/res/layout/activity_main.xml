@@ -17,7 +17,8 @@
         <LinearLayout
             android:orientation="vertical"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content">
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal">
 
             <!-- Шапка -->
             <FrameLayout
@@ -35,18 +36,15 @@
                     android:textSize="40sp"
                     android:textStyle="bold"
                     android:textColor="#FFFFFF"
-                    android:fontFamily="sans-serif"
-                    android:layout_alignParentStart="true" />
+                    android:fontFamily="sans-serif" />
 
                 <FrameLayout
                     android:layout_width="40dp"
                     android:layout_height="40dp"
-                    android:layout_alignParentEnd="true"
                     android:layout_marginEnd="50dp"
                     android:background="@drawable/background_btn"
                     android:layout_marginTop="10dp"
-                    android:layout_gravity="end"
-                    android:layout_alignTop="@id/title_home">
+                    android:layout_gravity="end">
 
                     <ImageView
                         android:id="@+id/btn_settings"
@@ -60,9 +58,7 @@
                     android:id="@+id/plus"
                     android:layout_width="40dp"
                     android:layout_height="40dp"
-                    android:layout_alignParentEnd="true"
                     android:layout_marginTop="10dp"
-                    android:layout_alignTop="@id/title_home"
                     android:layout_gravity="end"
                     android:background="@drawable/background_btn"
                     android:onClick="addWidgets">
@@ -82,7 +78,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:paddingTop="20dp"
-                android:paddingBottom="20dp"/>
+                android:layout_marginBottom="100dp" />
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>

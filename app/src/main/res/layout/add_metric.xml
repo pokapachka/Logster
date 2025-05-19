@@ -1,12 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/addWorkout"
+    android:id="@+id/addBodyMetric"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/rounded_top"
     android:fontFamily="sans-serif">
 
-    <!-- Ручка сверху -->
     <View
         android:layout_width="80dp"
         android:layout_height="4dp"
@@ -89,13 +88,13 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:gravity="center_horizontal"
-                android:paddingTop="210dp"
-                android:paddingBottom="550dp">
+                android:paddingTop="230dp"
+                android:paddingBottom="590dp">
 
                 <!-- Унифицированный стиль для всех -->
                 <TextView
                     android:id="@+id/custom"
-                    android:text="Своя"
+                    android:text="Вес"
                     android:layout_width="match_parent"
                     android:layout_height="50dp"
                     android:gravity="start|center_vertical"
@@ -105,7 +104,7 @@
 
                 <TextView
                     android:id="@+id/fullbudy"
-                    android:text="Фуллбади"
+                    android:text="Рост"
                     android:layout_width="match_parent"
                     android:layout_height="50dp"
                     android:gravity="start|center_vertical"
@@ -115,87 +114,7 @@
 
                 <TextView
                     android:id="@+id/upperbudy"
-                    android:text="Верхняя часть"
-                    android:layout_width="match_parent"
-                    android:layout_height="50dp"
-                    android:gravity="start|center_vertical"
-                    android:paddingStart="15dp"
-                    android:textColor="@drawable/selected_item"
-                    android:textSize="25sp" />
-
-                <TextView
-                    android:id="@+id/legs"
-                    android:text="Ноги"
-                    android:layout_width="match_parent"
-                    android:layout_height="50dp"
-                    android:gravity="start|center_vertical"
-                    android:paddingStart="15dp"
-                    android:textColor="@drawable/selected_item"
-                    android:textSize="25sp" />
-
-                <TextView
-                    android:id="@+id/back"
-                    android:text="Спина"
-                    android:layout_width="match_parent"
-                    android:layout_height="50dp"
-                    android:gravity="start|center_vertical"
-                    android:paddingStart="15dp"
-                    android:textColor="@drawable/selected_item"
-                    android:textSize="25sp" />
-
-                <TextView
-                    android:id="@+id/chest"
-                    android:text="Грудь"
-                    android:layout_width="match_parent"
-                    android:layout_height="50dp"
-                    android:gravity="start|center_vertical"
-                    android:paddingStart="15dp"
-                    android:textColor="@drawable/selected_item"
-                    android:textSize="25sp" />
-
-                <TextView
-                    android:id="@+id/shoulders"
-                    android:text="Плечи"
-                    android:layout_width="match_parent"
-                    android:layout_height="50dp"
-                    android:gravity="start|center_vertical"
-                    android:paddingStart="15dp"
-                    android:textColor="@drawable/selected_item"
-                    android:textSize="25sp" />
-
-                <TextView
-                    android:id="@+id/bicep"
-                    android:text="Бицепс"
-                    android:layout_width="match_parent"
-                    android:layout_height="50dp"
-                    android:gravity="start|center_vertical"
-                    android:paddingStart="15dp"
-                    android:textColor="@drawable/selected_item"
-                    android:textSize="25sp" />
-
-                <TextView
-                    android:id="@+id/tricep"
-                    android:text="Трицепс"
-                    android:layout_width="match_parent"
-                    android:layout_height="50dp"
-                    android:gravity="start|center_vertical"
-                    android:paddingStart="15dp"
-                    android:textColor="@drawable/selected_item"
-                    android:textSize="25sp" />
-
-                <TextView
-                    android:id="@+id/core"
-                    android:text="Пресс"
-                    android:layout_width="match_parent"
-                    android:layout_height="50dp"
-                    android:gravity="start|center_vertical"
-                    android:paddingStart="15dp"
-                    android:textColor="@drawable/selected_item"
-                    android:textSize="25sp" />
-
-                <TextView
-                    android:id="@+id/cardio"
-                    android:text="Кардио"
+                    android:text="Число"
                     android:layout_width="match_parent"
                     android:layout_height="50dp"
                     android:gravity="start|center_vertical"

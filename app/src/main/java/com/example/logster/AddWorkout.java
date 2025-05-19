@@ -42,7 +42,7 @@ public class AddWorkout {
     }
 
     private static final Handler handler = new Handler(Looper.getMainLooper());
-    private static Runnable scrollRunnable;
+    public static Runnable scrollRunnable;
     private static TextView selectedTextView = null;
     private static String lastSelectedWorkout = null;
 

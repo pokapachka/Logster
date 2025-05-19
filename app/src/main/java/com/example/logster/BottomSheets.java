@@ -19,7 +19,7 @@ public class BottomSheets {
     private int screenHeight;
     private int initialTopMargin;
     private FrameLayout.LayoutParams params;
-    private boolean isShowing; // New flag to track visibility
+    private boolean isShowing;
 
     public BottomSheets(Activity activity) {
         this(activity, R.layout.widgets);

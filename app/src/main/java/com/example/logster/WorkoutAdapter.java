@@ -1,104 +1,66 @@
 package com.example.logster;
 
-import android.os.Handler;
-import android.os.Looper;
+import android.util.Log;
 import android.view.LayoutInflater;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
-import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.RecyclerView;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public class WorkoutAdapter extends RecyclerView.Adapter<WorkoutAdapter.WorkoutViewHolder> {
-
     private List<MainActivity.Workout> workouts;
-    private final MainActivity mainActivity; // Для доступа к getNearestDay
-    private ItemTouchHelper itemTouchHelper; // Для управления перетаскиванием
-    private final Handler longPressHandler = new Handler(Looper.getMainLooper());
-    private final long LONG_PRESS_TIMEOUT = 300; // Время долгого нажатия (200 мс)
-    private Runnable longPressRunnable;
+    private MainActivity activity;
 
-    public WorkoutAdapter(List<MainActivity.Workout> workouts, MainActivity mainActivity, ItemTouchHelper itemTouchHelper) {
-        this.workouts = workouts != null ? workouts : new ArrayList<>();
-        this.mainActivity = mainActivity;
-        this.itemTouchHelper = itemTouchHelper;
+    public WorkoutAdapter(List<MainActivity.Workout> workouts, MainActivity activity) {
+        this.workouts = workouts;
+        this.activity = activity;
+        Log.d("WorkoutAdapter", "Initialized with workouts: " + workouts.size());
     }
 
     @NonNull
     @Override
     public WorkoutViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.widget, parent, false);
-        // Рассчитываем ширину виджета
-        int screenWidth = parent.getResources().getDisplayMetrics().widthPixels;
-        WorkoutViewHolder holder = new WorkoutViewHolder(view);
-        // Настраиваем кастомное долгое нажатие
-        view.setOnTouchListener((v, event) -> {
-            switch (event.getAction()) {
-                case MotionEvent.ACTION_DOWN:
-                    // Создаём Runnable для долгого нажатия
-                    longPressRunnable = () -> {
-                        itemTouchHelper.startDrag(holder); // Инициируем перетаскивание
-                    };
-                    longPressHandler.postDelayed(longPressRunnable, LONG_PRESS_TIMEOUT);
-                    break;
-                case MotionEvent.ACTION_UP:
-                case MotionEvent.ACTION_CANCEL:
-                    // Отменяем долгое нажатие, если палец убран
-                    longPressHandler.removeCallbacks(longPressRunnable);
-                    break;
-            }
-            return false; // Возвращаем false, чтобы другие слушатели могли обработать событие
-        });
-        return holder;
+        return new WorkoutViewHolder(view);
     }
 
     @Override
     public void onBindViewHolder(@NonNull WorkoutViewHolder holder, int position) {
         MainActivity.Workout workout = workouts.get(position);
-        holder.nameTextView.setText(workout.name);
-        holder.dayTextView.setText("Ближайший день: " + mainActivity.getNearestDay(workout.days));
+        Log.d("WorkoutAdapter", "Binding workout at position: " + position + ", name: " + workout.name);
+        holder.workoutName.setText(workout.name);
+        holder.workoutName.setVisibility(View.VISIBLE);
+        holder.workoutDay.setText(activity.getNearestDay(workout.days));
+        holder.workoutDay.setVisibility(View.VISIBLE);
+        holder.workoutCount.setVisibility(View.GONE);
     }
 
     @Override
     public int getItemCount() {
-        return workouts.size();
+        int size = workouts.size();
+        Log.d("WorkoutAdapter", "getItemCount: " + size);
+        return size;
     }
 
-    // Перемещение элементов при drag-and-drop
-    public void onItemMove(int fromPosition, int toPosition) {
-        Collections.swap(workouts, fromPosition, toPosition);
-        notifyItemMoved(fromPosition, toPosition);
-    }
-
-    // Удаление элемента при свайпе
-    public void onItemDismiss(int position) {
-        workouts.remove(position);
-        notifyItemRemoved(position);
-    }
-
-    // Получение списка тренировок (для сохранения в SharedPreferences)
-    public List<MainActivity.Workout> getWorkouts() {
-        return workouts;
+    public void updateWorkouts(List<MainActivity.Workout> newWorkouts) {
+        this.workouts.clear();
+        this.workouts.addAll(newWorkouts);
+        notifyDataSetChanged();
+        Log.d("WorkoutAdapter", "Updated workouts: " + workouts.size());
     }
 
     static class WorkoutViewHolder extends RecyclerView.ViewHolder {
-        TextView nameTextView;
-        TextView dayTextView;
+        TextView workoutName;
+        TextView workoutDay;
+        TextView workoutCount;
 
-        WorkoutViewHolder(@NonNull View itemView) {
+        WorkoutViewHolder(View itemView) {
             super(itemView);
-            nameTextView = itemView.findViewById(R.id.workout_name);
-            dayTextView = itemView.findViewById(R.id.workout_day);
+            workoutName = itemView.findViewById(R.id.workout_name);
+            workoutDay = itemView.findViewById(R.id.workout_day);
+            workoutCount = itemView.findViewById(R.id.workout_count);
         }
-    }
-
-    private int dpToPx(int dp) {
-        float density = mainActivity.getResources().getDisplayMetrics().density;
-        return Math.round(dp * density);
     }
 }

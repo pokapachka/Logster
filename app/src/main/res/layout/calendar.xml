@@ -29,7 +29,7 @@
                 android:layout_marginStart="20dp"
                 android:layout_marginTop="60dp"
                 android:fontFamily="sans-serif"
-                android:layout_marginBottom="16dp"/>
+                android:layout_marginBottom="20dp"/>
 
             <!-- Дни недели -->
             <GridLayout
@@ -110,8 +110,7 @@
                 android:layout_height="wrap_content"
                 android:columnCount="7"
                 android:rowCount="6"
-                android:layout_marginTop="8dp"
-                android:paddingHorizontal="4dp"/>
+                android:layout_marginTop="15dp" />
         </LinearLayout>
     </ScrollView>
 

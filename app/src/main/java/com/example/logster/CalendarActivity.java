@@ -1,6 +1,7 @@
 package com.example.logster;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.icu.util.ULocale;
 import android.os.Build;
@@ -16,6 +17,8 @@ import android.view.WindowInsetsController;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
 import android.widget.GridLayout;
+import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
@@ -25,10 +28,18 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 public class CalendarActivity extends AppCompatActivity {
     private BottomNavigationManager navManager;
@@ -36,6 +47,9 @@ public class CalendarActivity extends AppCompatActivity {
     private GridLayout calendarGrid;
     private Calendar currentCalendar;
     private GestureDetector gestureDetector;
+    private SharedPreferences sharedPreferences;
+    private static final String PREFS_NAME = "WorkoutPrefs";
+    private static final String WORKOUTS_KEY = "workouts";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,6 +58,8 @@ public class CalendarActivity extends AppCompatActivity {
 
         navManager = new BottomNavigationManager(findViewById(R.id.calendar), this);
         navManager.setCurrentActivity("CalendarActivity");
+
+        sharedPreferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
 
         boolean goToToday = getIntent().getBooleanExtra("goToToday", false);
         if (goToToday) {
@@ -75,6 +91,10 @@ public class CalendarActivity extends AppCompatActivity {
         int firstDayOfWeek = currentCalendar.get(Calendar.DAY_OF_WEEK);
         int daysInMonth = currentCalendar.getActualMaximum(Calendar.DAY_OF_MONTH);
         int offset = (firstDayOfWeek + 5) % 7;
+
+        // Get workout days for the current month
+        Set<String> workoutDates = getWorkoutDatesForMonth(currentCalendar);
+
         for (int i = 0; i < offset; i++) {
             addDayToCalendar("");
         }
@@ -83,7 +103,11 @@ public class CalendarActivity extends AppCompatActivity {
             boolean isToday = (day == today.get(Calendar.DAY_OF_MONTH) &&
                     (currentCalendar.get(Calendar.MONTH) == today.get(Calendar.MONTH)) &&
                     (currentCalendar.get(Calendar.YEAR) == today.get(Calendar.YEAR)));
-            addDayToCalendar(String.valueOf(day), isToday);
+            // Format the date as YYYY-MM-DD
+            String dateKey = String.format("%d-%02d-%02d", currentCalendar.get(Calendar.YEAR),
+                    currentCalendar.get(Calendar.MONTH) + 1, day);
+            boolean hasWorkout = workoutDates.contains(dateKey);
+            addDayToCalendar(String.valueOf(day), isToday, hasWorkout);
         }
         int totalCells = offset + daysInMonth;
         int remainingCells = 42 - totalCells;
@@ -92,19 +116,98 @@ public class CalendarActivity extends AppCompatActivity {
         }
     }
 
+    private Set<String> getWorkoutDatesForMonth(Calendar calendar) {
+        Set<String> workoutDates = new HashSet<>();
+        List<MainActivity.Workout> workouts = loadWorkouts();
+
+        Calendar tempCal = (Calendar) calendar.clone();
+        tempCal.set(Calendar.DAY_OF_MONTH, 1);
+        int daysInMonth = tempCal.getActualMaximum(Calendar.DAY_OF_MONTH);
+
+        for (int day = 1; day <= daysInMonth; day++) {
+            tempCal.set(Calendar.DAY_OF_MONTH, day);
+            int dayOfWeek = tempCal.get(Calendar.DAY_OF_WEEK);
+            String dayName = getDayName(dayOfWeek);
+
+            for (MainActivity.Workout workout : workouts) {
+                if (workout.days.contains(dayName)) {
+                    String dateKey = String.format("%d-%02d-%02d", tempCal.get(Calendar.YEAR),
+                            tempCal.get(Calendar.MONTH) + 1, day);
+                    workoutDates.add(dateKey);
+                }
+            }
+        }
+        return workoutDates;
+    }
+
+    private String getDayName(int dayOfWeek) {
+        switch (dayOfWeek) {
+            case Calendar.MONDAY:
+                return "Понедельник";
+            case Calendar.TUESDAY:
+                return "Вторник";
+            case Calendar.WEDNESDAY:
+                return "Среда";
+            case Calendar.THURSDAY:
+                return "Четверг";
+            case Calendar.FRIDAY:
+                return "Пятница";
+            case Calendar.SATURDAY:
+                return "Суббота";
+            case Calendar.SUNDAY:
+                return "Воскресенье";
+            default:
+                return "";
+        }
+    }
+
+    private List<MainActivity.Workout> loadWorkouts() {
+        List<MainActivity.Workout> workouts = new ArrayList<>();
+        String workoutsJson = sharedPreferences.getString(WORKOUTS_KEY, null);
+        if (workoutsJson != null) {
+            try {
+                JSONArray workoutsArray = new JSONArray(workoutsJson);
+                for (int i = 0; i < workoutsArray.length(); i++) {
+                    JSONObject workoutJson = workoutsArray.getJSONObject(i);
+                    MainActivity.Workout workout = MainActivity.Workout.fromJson(workoutJson);
+                    workouts.add(workout);
+                }
+            } catch (JSONException e) {
+                Log.e("CalendarActivity", "Error loading workouts: " + e.getMessage());
+            }
+        }
+        return workouts;
+    }
+
     private void addDayToCalendar(String text) {
-        addDayToCalendar(text, false);
+        addDayToCalendar(text, false, false);
     }
 
     private void addDayToCalendar(String text, boolean isToday) {
-        TextView dayView = new TextView(this);
+        addDayToCalendar(text, isToday, false);
+    }
+
+    private void addDayToCalendar(String text, boolean isToday, boolean hasWorkout) {
+        // Используем RelativeLayout вместо LinearLayout
+        RelativeLayout dayContainer = new RelativeLayout(this);
+
         GridLayout.LayoutParams params = new GridLayout.LayoutParams();
         DisplayMetrics metrics = getResources().getDisplayMetrics();
         int cellWidth = metrics.widthPixels / 7;
         params.width = cellWidth;
-        params.height = (int) (cellWidth * 1.2);
+        params.height = (int) (cellWidth * 1.2); // Фиксированная высота ячейки
         params.setGravity(Gravity.CENTER);
-        dayView.setLayoutParams(params);
+        dayContainer.setLayoutParams(params);
+
+        // Day text
+        TextView dayView = new TextView(this);
+        dayView.setId(View.generateViewId()); // Генерируем ID для привязки
+        RelativeLayout.LayoutParams textParams = new RelativeLayout.LayoutParams(
+                RelativeLayout.LayoutParams.WRAP_CONTENT,
+                RelativeLayout.LayoutParams.WRAP_CONTENT
+        );
+        textParams.addRule(RelativeLayout.CENTER_IN_PARENT); // Центрируем текст в контейнере
+        dayView.setLayoutParams(textParams);
         dayView.setText(text);
         dayView.setTextSize(16);
         dayView.setGravity(Gravity.CENTER);
@@ -113,7 +216,30 @@ public class CalendarActivity extends AppCompatActivity {
             dayView.setBackgroundResource(R.drawable.current_day);
             dayView.setTextColor(Color.BLACK);
         }
-        calendarGrid.addView(dayView);
+        dayContainer.addView(dayView);
+
+        // Workout indicator (gray dot)
+        if (hasWorkout && !text.isEmpty()) {
+            View dot = new View(this);
+            RelativeLayout.LayoutParams dotParams = new RelativeLayout.LayoutParams(
+                    dpToPx(6), // Размер круга
+                    dpToPx(6)
+            );
+            dotParams.addRule(RelativeLayout.BELOW, dayView.getId()); // Размещаем ниже текста
+            dotParams.addRule(RelativeLayout.CENTER_HORIZONTAL); // Центрируем по горизонтали
+            dotParams.topMargin = dpToPx(2); // Небольшой отступ от текста
+            dot.setLayoutParams(dotParams);
+            dot.setBackgroundResource(R.drawable.circle);
+            dot.getBackground().setTint(Color.GRAY);
+            dayContainer.addView(dot);
+        }
+
+        calendarGrid.addView(dayContainer);
+    }
+
+    private int dpToPx(int dp) {
+        float density = getResources().getDisplayMetrics().density;
+        return Math.round(dp * density);
     }
 
     private class SwipeGestureListener extends GestureDetector.SimpleOnGestureListener {
@@ -174,6 +300,7 @@ public class CalendarActivity extends AppCompatActivity {
         };
         return MONTHS_NOMINATIVE[calendar.get(Calendar.MONTH)];
     }
+
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
@@ -181,6 +308,7 @@ public class CalendarActivity extends AppCompatActivity {
             hideSystemUI();
         }
     }
+
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
@@ -224,5 +352,4 @@ public class CalendarActivity extends AppCompatActivity {
             );
         }
     }
-
 }
