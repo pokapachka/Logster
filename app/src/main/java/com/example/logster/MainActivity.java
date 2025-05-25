@@ -35,10 +35,14 @@ import org.json.JSONObject;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 
 public class MainActivity extends AppCompatActivity implements AddWorkout.WorkoutSelectionListener {
 
@@ -58,35 +62,72 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
     private static final String PREFS_NAME = "WorkoutPrefs";
     private static final String WORKOUTS_KEY = "workouts";
     private static final String METRICS_KEY = "body_metrics";
+    private static final String WEEKLY_SCHEDULE_KEY = "weekly_schedule";
+    private static final String SPECIFIC_DATES_KEY = "specific_dates";
+
+    private Map<DayOfWeek, String> weeklySchedule;
+    private Map<String, String> specificDates;
+
+    private static final Map<String, DayOfWeek> DAY_OF_WEEK_MAP = new HashMap<>();
+
+    static {
+        DAY_OF_WEEK_MAP.put("ПОНЕДЕЛЬНИК", DayOfWeek.MONDAY);
+        DAY_OF_WEEK_MAP.put("ВТОРНИК", DayOfWeek.TUESDAY);
+        DAY_OF_WEEK_MAP.put("СРЕДА", DayOfWeek.WEDNESDAY);
+        DAY_OF_WEEK_MAP.put("ЧЕТВЕРГ", DayOfWeek.THURSDAY);
+        DAY_OF_WEEK_MAP.put("ПЯТНИЦА", DayOfWeek.FRIDAY);
+        DAY_OF_WEEK_MAP.put("СУББОТА", DayOfWeek.SATURDAY);
+        DAY_OF_WEEK_MAP.put("ВОСКРЕСЕНЬЕ", DayOfWeek.SUNDAY);
+    }
 
     public static class Workout {
-        String name;
-        List<String> days;
+        public String id;
+        public String name;
+        public List<String> dates;
 
-        Workout(String name, List<String> days) {
+        public Workout(String id, String name) {
+            this.id = id;
             this.name = name;
-            this.days = days;
+            this.dates = new ArrayList<>();
         }
 
-        JSONObject toJson() throws JSONException {
-            JSONObject json = new JSONObject();
-            json.put("name", name);
-            JSONArray daysArray = new JSONArray();
-            for (String day : days) {
-                daysArray.put(day);
+        public Workout(String id, String name, List<String> dates) {
+            this.id = id;
+            this.name = name;
+            this.dates = new ArrayList<>(dates);
+        }
+
+        public void addDate(String date) {
+            if (!dates.contains(date)) {
+                dates.add(date);
             }
-            json.put("days", daysArray);
+        }
+
+        public void removeDate(String date) {
+            dates.remove(date);
+        }
+
+        public JSONObject toJson() throws JSONException {
+            JSONObject json = new JSONObject();
+            json.put("id", id);
+            json.put("name", name);
+            JSONArray datesArray = new JSONArray();
+            for (String date : dates) {
+                datesArray.put(date);
+            }
+            json.put("dates", datesArray);
             return json;
         }
 
-        static Workout fromJson(JSONObject json) throws JSONException {
+        public static Workout fromJson(JSONObject json) throws JSONException {
+            String id = json.optString("id", UUID.randomUUID().toString());
             String name = json.getString("name");
-            JSONArray daysArray = json.getJSONArray("days");
-            List<String> days = new ArrayList<>();
-            for (int i = 0; i < daysArray.length(); i++) {
-                days.add(daysArray.getString(i));
+            Workout workout = new Workout(id, name);
+            JSONArray datesArray = json.getJSONArray("dates");
+            for (int i = 0; i < datesArray.length(); i++) {
+                workout.dates.add(datesArray.getString(i));
             }
-            return new Workout(name, days);
+            return workout;
         }
     }
 
@@ -132,9 +173,12 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
 
         workouts = new ArrayList<>();
         bodyMetrics = new ArrayList<>();
+        weeklySchedule = new HashMap<>();
+        specificDates = new HashMap<>();
 
         workoutRecyclerView = findViewById(R.id.workout_recycler_view);
         workoutRecyclerView.setLayoutManager(new GridLayoutManager(this, 2));
+        workoutRecyclerView.setNestedScrollingEnabled(true);
 
         combinedAdapter = new CombinedAdapter(workouts, bodyMetrics, this);
         workoutRecyclerView.setAdapter(combinedAdapter);
@@ -160,9 +204,18 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
             @Override
             public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) {
                 int position = viewHolder.getAdapterPosition();
-                combinedAdapter.onItemDismiss(position);
-                saveWorkouts();
-                saveBodyMetrics();
+                Object item = combinedAdapter.items.get(position);
+                if (item instanceof Workout) {
+                    Workout workout = (Workout) item;
+                    workouts.remove(workout);
+                    removeWorkoutFromSchedules(workout.id);
+                    saveWorkouts();
+                    saveWeeklySchedule();
+                    saveSpecificDates();
+                    syncWorkoutDates();
+                    combinedAdapter.updateData(workouts, bodyMetrics);
+                    Log.d("MainActivity", "Removed workout: " + workout.name + " with ID: " + workout.id);
+                }
             }
 
             @Override
@@ -200,7 +253,6 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
             }
         });
 
-        // Установка слушателя для AddBodyMetric
         com.example.logster.AddBodyMetric.setMetricSelectionListener(new com.example.logster.AddBodyMetric.MetricSelectionListener() {
             @Override
             public void onMetricSelected(String metricKey) {
@@ -214,16 +266,38 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
                 bodyMetrics.add(new BodyMetric(metricType, value, System.currentTimeMillis()));
                 saveBodyMetrics();
                 combinedAdapter.updateData(workouts, bodyMetrics);
-                Log.d("MainActivity", "bodyMetrics size: " + bodyMetrics.size());
                 widgetSheet.hide(null);
             }
         });
 
         loadWorkouts();
         loadBodyMetrics();
+        loadWeeklySchedule();
+        loadSpecificDates();
+        syncWorkoutDates();
         combinedAdapter.updateData(workouts, bodyMetrics);
-        Log.d("MainActivity", "After load: workouts size: " + workouts.size() + ", bodyMetrics size: " + bodyMetrics.size());
         hideSystemUI();
+    }
+
+    private void removeWorkoutFromSchedules(String workoutId) {
+        Iterator<Map.Entry<DayOfWeek, String>> weeklyIter = weeklySchedule.entrySet().iterator();
+        while (weeklyIter.hasNext()) {
+            Map.Entry<DayOfWeek, String> entry = weeklyIter.next();
+            if (entry.getValue().equals(workoutId)) {
+                weeklyIter.remove();
+                Log.d("MainActivity", "Removed workout ID " + workoutId + " from weekly schedule on " + entry.getKey());
+            }
+        }
+        Iterator<Map.Entry<String, String>> specificIter = specificDates.entrySet().iterator();
+        while (specificIter.hasNext()) {
+            Map.Entry<String, String> entry = specificIter.next();
+            if (entry.getValue().equals(workoutId)) {
+                specificIter.remove();
+                Log.d("MainActivity", "Removed workout ID " + workoutId + " from specific date " + entry.getKey());
+            }
+        }
+        saveWeeklySchedule();
+        saveSpecificDates();
     }
 
     @Override
@@ -254,16 +328,20 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
 
     @Override
     public void onBackPressed() {
-        super.onBackPressed();
-        if (isTaskRoot()) {
-            moveTaskToBack(true);
+        if (widgetSheet != null && widgetSheet.isShowing()) {
+            widgetSheet.hide(null);
         } else {
-            Intent intent = new Intent(this, MainActivity.class);
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            ActivityOptions options = ActivityOptions.makeCustomAnimation(this, android.R.anim.fade_in, android.R.anim.fade_out);
-            startActivity(intent, options.toBundle());
-            navManager.forceSetActiveButton("MainActivity");
-            finish();
+            super.onBackPressed();
+            if (isTaskRoot()) {
+                moveTaskToBack(true);
+            } else {
+                Intent intent = new Intent(this, MainActivity.class);
+                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                ActivityOptions options = ActivityOptions.makeCustomAnimation(this, android.R.anim.fade_in, android.R.anim.fade_out);
+                startActivity(intent, options.toBundle());
+                navManager.forceSetActiveButton("MainActivity");
+                finish();
+            }
         }
     }
 
@@ -276,19 +354,17 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
     @Override
     protected void onResume() {
         super.onResume();
-        if (navManager != null) {
-            navManager.forceSetActiveButton("MainActivity");
-        }
+        navManager.forceSetActiveButton("MainActivity");
         combinedAdapter.updateData(workouts, bodyMetrics);
-        Log.d("MainActivity", "onResume: workouts size: " + workouts.size() + ", bodyMetrics size: " + bodyMetrics.size());
     }
 
     public void addWidgets(View view) {
         selectedWorkoutName = null;
         if (selectedDays != null) {
             selectedDays.clear();
+        } else {
+            selectedDays = new ArrayList<>();
         }
-
         if (widgetSheet != null && widgetSheet.isShowing()) {
             widgetSheet.hide(() -> {
                 widgetSheet = new BottomSheets(this, R.layout.widgets);
@@ -306,6 +382,20 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
         if (selectedDays != null) {
             selectedDays.clear();
         }
+        if (widgetSheet != null && widgetSheet.isShowing() && widgetSheet.getContentView() != null) {
+            com.google.android.flexbox.FlexboxLayout daysContainer = widgetSheet.getContentView().findViewById(R.id.days_container);
+            if (daysContainer != null) {
+                int[] dayIds = {R.id.day_monday, R.id.day_tuesday, R.id.day_wednesday,
+                        R.id.day_thursday, R.id.day_friday, R.id.day_saturday, R.id.day_sunday};
+                for (int id : dayIds) {
+                    TextView dayTextView = daysContainer.findViewById(id);
+                    if (dayTextView != null) {
+                        dayTextView.setTag(false);
+                        dayTextView.getBackground().setTint(COLOR_UNSELECTED);
+                    }
+                }
+            }
+        }
         widgetSheet.hide(null);
     }
 
@@ -315,9 +405,41 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
         for (String day : days) {
             workoutCountByDay.put(day, new ArrayList<>());
         }
-        for (Workout workout : workouts) {
-            for (String day : workout.days) {
-                workoutCountByDay.get(day).add(workout.name);
+
+        LocalDate today = LocalDate.now();
+        for (Map.Entry<DayOfWeek, String> entry : weeklySchedule.entrySet()) {
+            String dayName = entry.getKey().getDisplayName(java.time.format.TextStyle.FULL, new Locale("ru"));
+            dayName = dayName.substring(0, 1).toUpperCase() + dayName.substring(1);
+            String workoutId = entry.getValue();
+            if (workoutId != null && !workoutId.isEmpty()) {
+                for (Workout workout : workouts) {
+                    if (workout.id.equals(workoutId)) {
+                        workoutCountByDay.get(dayName).add(workout.name);
+                        break;
+                    }
+                }
+            }
+        }
+
+        for (Map.Entry<String, String> entry : specificDates.entrySet()) {
+            try {
+                LocalDate date = LocalDate.parse(entry.getKey());
+                if (!date.isBefore(today)) {
+                    String dayName = date.getDayOfWeek().getDisplayName(
+                            java.time.format.TextStyle.FULL, new Locale("ru"));
+                    dayName = dayName.substring(0, 1).toUpperCase() + dayName.substring(1);
+                    String workoutId = entry.getValue();
+                    if (workoutId != null && !workoutId.isEmpty()) {
+                        for (Workout workout : workouts) {
+                            if (workout.id.equals(workoutId)) {
+                                workoutCountByDay.get(dayName).add(workout.name);
+                                break;
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                Log.e("MainActivity", "Error parsing date in getWorkoutCountByDay: " + entry.getKey(), e);
             }
         }
         return workoutCountByDay;
@@ -327,108 +449,61 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
         selectedWorkoutName = workoutNameEditText.getText().toString();
         if (!selectedWorkoutName.trim().isEmpty()) {
             switchSheet(R.layout.add_workout3, selectedWorkoutName, true, R.anim.slide_out_left, R.anim.slide_in_right);
+        } else {
+            Toast.makeText(this, "Введите название тренировки", Toast.LENGTH_SHORT).show();
         }
     }
-
-
 
     private void hideKeyboard() {
         View currentFocus = getCurrentFocus();
         if (currentFocus != null) {
             InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-            if (imm != null) {
-                imm.hideSoftInputFromWindow(currentFocus.getWindowToken(), 0);
-            }
+            imm.hideSoftInputFromWindow(currentFocus.getWindowToken(), 0);
             currentFocus.clearFocus();
         } else {
             InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-            if (imm != null) {
-                imm.hideSoftInputFromWindow(getWindow().getDecorView().getWindowToken(), 0);
-            }
+            imm.hideSoftInputFromWindow(getWindow().getDecorView().getWindowToken(), 0);
         }
     }
 
-    public String getNearestDay(List<String> days) {
+    public String getNearestDay(String workoutId, List<String> dates) {
         LocalDate today = LocalDate.now();
-        DayOfWeek todayDayOfWeek = today.getDayOfWeek();
+        LocalDate nearestDate = null;
+        long minDaysAhead = Long.MAX_VALUE;
 
-        List<DayOfWeek> selectedDaysOfWeek = new ArrayList<>();
-        for (String day : days) {
-            switch (day) {
-                case "Понедельник":
-                    selectedDaysOfWeek.add(DayOfWeek.MONDAY);
-                    break;
-                case "Вторник":
-                    selectedDaysOfWeek.add(DayOfWeek.TUESDAY);
-                    break;
-                case "Среда":
-                    selectedDaysOfWeek.add(DayOfWeek.WEDNESDAY);
-                    break;
-                case "Четверг":
-                    selectedDaysOfWeek.add(DayOfWeek.THURSDAY);
-                    break;
-                case "Пятница":
-                    selectedDaysOfWeek.add(DayOfWeek.FRIDAY);
-                    break;
-                case "Суббота":
-                    selectedDaysOfWeek.add(DayOfWeek.SATURDAY);
-                    break;
-                case "Воскресенье":
-                    selectedDaysOfWeek.add(DayOfWeek.SUNDAY);
-                    break;
+        for (String dateStr : dates) {
+            try {
+                LocalDate date = LocalDate.parse(dateStr);
+                long daysAhead = java.time.temporal.ChronoUnit.DAYS.between(today, date);
+                if (daysAhead >= 0 && daysAhead < minDaysAhead) {
+                    minDaysAhead = daysAhead;
+                    nearestDate = date;
+                }
+            } catch (Exception e) {
+                Log.e("MainActivity", "Error parsing date in getNearestDay: " + dateStr, e);
             }
         }
 
-        DayOfWeek nearestDay = null;
-        int minDaysAhead = 8;
-        for (DayOfWeek day : selectedDaysOfWeek) {
-            int daysAhead = day.getValue() - todayDayOfWeek.getValue();
-            if (daysAhead < 0) {
-                daysAhead += 7;
-            }
-            if (daysAhead < minDaysAhead) {
-                minDaysAhead = daysAhead;
-                nearestDay = day;
-            }
-        }
-
-        if (nearestDay == null) {
+        if (nearestDate == null) {
             return "Не выбрано";
         }
 
-        switch (nearestDay) {
-            case MONDAY:
-                return "понедельник";
-            case TUESDAY:
-                return "вторник";
-            case WEDNESDAY:
-                return "среда";
-            case THURSDAY:
-                return "четверг";
-            case FRIDAY:
-                return "пятница";
-            case SATURDAY:
-                return "суббота";
-            case SUNDAY:
-                return "воскресенье";
-            default:
-                return "неизвестно";
-        }
+        return nearestDate.getDayOfWeek().getDisplayName(java.time.format.TextStyle.FULL, new Locale("ru")).toLowerCase();
     }
 
     private void saveWorkouts() {
-        SharedPreferences.Editor editor = sharedPreferences.edit();
         try {
+            SharedPreferences.Editor editor = sharedPreferences.edit();
             JSONArray workoutsArray = new JSONArray();
             for (Workout workout : workouts) {
                 workoutsArray.put(workout.toJson());
             }
             editor.putString(WORKOUTS_KEY, workoutsArray.toString());
+            editor.apply();
             Log.d("MainActivity", "Saved workouts: " + workoutsArray.toString());
         } catch (JSONException e) {
-            Log.e("MainActivity", "Error saving workouts: " + e.getMessage());
+            Log.e("MainActivity", "Error saving workouts: " + e.getMessage(), e);
         }
-        editor.apply();
     }
 
     private void loadWorkouts() {
@@ -443,28 +518,25 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
                     workouts.add(workout);
                 }
                 Log.d("MainActivity", "Loaded workouts: " + workouts.size());
-                combinedAdapter.updateData(workouts, bodyMetrics);
             } catch (JSONException e) {
-                Log.e("MainActivity", "Error loading workouts: " + e.getMessage());
+                Log.e("MainActivity", "Error loading workouts: " + e.getMessage(), e);
             }
-        } else {
-            Log.d("MainActivity", "No workouts found in SharedPreferences");
         }
     }
 
     private void saveBodyMetrics() {
-        SharedPreferences.Editor editor = sharedPreferences.edit();
         try {
+            SharedPreferences.Editor editor = sharedPreferences.edit();
             JSONArray metricsArray = new JSONArray();
             for (BodyMetric metric : bodyMetrics) {
                 metricsArray.put(metric.toJson());
             }
             editor.putString(METRICS_KEY, metricsArray.toString());
+            editor.apply();
             Log.d("MainActivity", "Saved body metrics: " + metricsArray.toString());
         } catch (JSONException e) {
-            Log.e("MainActivity", "Error saving body metrics: " + e.getMessage());
+            Log.e("MainActivity", "Error saving body metrics: " + e.getMessage(), e);
         }
-        editor.apply();
     }
 
     private void loadBodyMetrics() {
@@ -479,13 +551,131 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
                     bodyMetrics.add(metric);
                 }
                 Log.d("MainActivity", "Loaded body metrics: " + bodyMetrics.size());
-                combinedAdapter.updateData(workouts, bodyMetrics);
             } catch (JSONException e) {
-                Log.e("MainActivity", "Error loading body metrics: " + e.getMessage());
+                Log.e("MainActivity", "Error loading body metrics: " + e.getMessage(), e);
             }
-        } else {
-            Log.d("MainActivity", "No body metrics found in SharedPreferences");
         }
+    }
+
+    private void saveWeeklySchedule() {
+        try {
+            SharedPreferences.Editor editor = sharedPreferences.edit();
+            JSONObject json = new JSONObject();
+            for (Map.Entry<DayOfWeek, String> entry : weeklySchedule.entrySet()) {
+                json.put(entry.getKey().toString(), entry.getValue());
+            }
+            editor.putString(WEEKLY_SCHEDULE_KEY, json.toString());
+            editor.apply();
+            Log.d("MainActivity", "Saved weekly schedule: " + json.toString());
+        } catch (JSONException e) {
+            Log.e("MainActivity", "Error saving weekly schedule: " + e.getMessage(), e);
+        }
+    }
+
+    private void loadWeeklySchedule() {
+        String scheduleJson = sharedPreferences.getString(WEEKLY_SCHEDULE_KEY, null);
+        if (scheduleJson != null) {
+            try {
+                JSONObject json = new JSONObject(scheduleJson);
+                weeklySchedule.clear();
+                for (DayOfWeek day : DayOfWeek.values()) {
+                    String workoutId = json.optString(day.toString(), null);
+                    if (workoutId != null) {
+                        weeklySchedule.put(day, workoutId);
+                    }
+                }
+                Log.d("MainActivity", "Loaded weekly schedule: " + weeklySchedule.size());
+            } catch (JSONException e) {
+                Log.e("MainActivity", "Error loading weekly schedule: " + e.getMessage(), e);
+            }
+        }
+    }
+
+    private void saveSpecificDates() {
+        try {
+            SharedPreferences.Editor editor = sharedPreferences.edit();
+            JSONObject json = new JSONObject();
+            for (Map.Entry<String, String> entry : specificDates.entrySet()) {
+                json.put(entry.getKey(), entry.getValue());
+            }
+            editor.putString(SPECIFIC_DATES_KEY, json.toString());
+            editor.apply();
+            Log.d("MainActivity", "Saved specific dates: " + json.toString());
+        } catch (JSONException e) {
+            Log.e("MainActivity", "Error saving specific dates: " + e.getMessage(), e);
+        }
+    }
+
+    private void loadSpecificDates() {
+        String datesJson = sharedPreferences.getString(SPECIFIC_DATES_KEY, null);
+        if (datesJson != null) {
+            try {
+                JSONObject json = new JSONObject(datesJson);
+                specificDates.clear();
+                Iterator<String> keys = json.keys();
+                while (keys.hasNext()) {
+                    String key = keys.next();
+                    String workoutId = json.getString(key);
+                    specificDates.put(key, workoutId);
+                }
+                Log.d("MainActivity", "Loaded specific dates: " + specificDates.size());
+            } catch (JSONException e) {
+                Log.e("MainActivity", "Error loading specific dates: " + e.getMessage(), e);
+            }
+        }
+    }
+
+    private void syncWorkoutDates() {
+        LocalDate today = LocalDate.now();
+        LocalDate endDate = today.plusYears(1);
+
+        for (Workout workout : workouts) {
+            workout.dates.clear();
+        }
+
+        for (Map.Entry<DayOfWeek, String> entry : weeklySchedule.entrySet()) {
+            DayOfWeek dayOfWeek = entry.getKey();
+            String workoutId = entry.getValue();
+            if (workoutId == null || workoutId.isEmpty()) continue;
+
+            LocalDate currentDate = today.with(TemporalAdjusters.nextOrSame(dayOfWeek));
+            while (!currentDate.isAfter(endDate)) {
+                String dateStr = currentDate.format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE);
+                String specificWorkoutId = specificDates.get(dateStr);
+                if (specificWorkoutId == null || specificWorkoutId.equals(workoutId)) {
+                    for (Workout workout : workouts) {
+                        if (workout.id.equals(workoutId)) {
+                            workout.addDate(dateStr);
+                            break;
+                        }
+                    }
+                }
+                currentDate = currentDate.plusWeeks(1);
+            }
+        }
+
+        for (Map.Entry<String, String> entry : specificDates.entrySet()) {
+            String dateStr = entry.getKey();
+            String workoutId = entry.getValue();
+            if (workoutId == null || workoutId.isEmpty()) continue;
+
+            try {
+                LocalDate date = LocalDate.parse(dateStr);
+                if (!date.isBefore(today)) {
+                    for (Workout workout : workouts) {
+                        if (workout.id.equals(workoutId)) {
+                            workout.addDate(dateStr);
+                            break;
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                Log.e("MainActivity", "Error parsing date in syncWorkoutDates: " + dateStr, e);
+            }
+        }
+
+        saveWorkouts();
+        Log.d("MainActivity", "Synced workouts: " + workouts.size() + " with dates.");
     }
 
     public String formatDate(long timestamp) {
@@ -541,13 +731,12 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
     public void addBodyMetric(View view) {
         switchSheet(R.layout.add_metric, null, false, 0, 0);
     }
+
     public void editWorkout(String workoutName) {
         View newView = LayoutInflater.from(this).inflate(R.layout.edit_workout, null);
         TextView titleTextView = newView.findViewById(R.id.title);
         if (titleTextView != null) {
             titleTextView.setText(workoutName);
-        } else {
-            Log.e("MainActivity", "title not found in edit_workout");
         }
         switchSheet(R.layout.edit_workout, workoutName, false, 0, 0);
     }
@@ -555,6 +744,13 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
     public void backSheetEditWorkout(View view) {
         widgetSheet.hide(null);
     }
+
+    public void openCalendarForDate(LocalDate date) {
+        Intent intent = new Intent(this, CalendarActivity.class);
+        intent.putExtra("goToToday", date.equals(LocalDate.now()));
+        startActivity(intent);
+    }
+
     private int dpToPx(int dp) {
         float density = getResources().getDisplayMetrics().density;
         return Math.round(dp * density);
@@ -562,7 +758,6 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
 
     private void switchSheet(int layoutId, String data, boolean useHorizontalTransition, int exitAnim, int enterAnim) {
         hideKeyboard();
-
         View newView = LayoutInflater.from(this).inflate(layoutId, null);
 
         if (layoutId == R.layout.add_workout) {
@@ -575,29 +770,24 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
             TextView workoutDescriptionTextView = newView.findViewById(R.id.workout_description);
 
             AddWorkout.setupScrollHighlight(
-                    scrollView,
-                    trainingList,
-                    topLine,
-                    bottomLine,
-                    centerArrow,
-                    workoutNameTextView,
-                    workoutDescriptionTextView
+                    scrollView, trainingList, topLine, bottomLine,
+                    centerArrow, workoutNameTextView, workoutDescriptionTextView
             );
         } else if (layoutId == R.layout.add_workout2) {
             EditText workoutNameEditText = newView.findViewById(R.id.ETworkout_name);
             if (data != null) {
                 workoutNameEditText.setText(data);
             }
-
-            // Используем View вместо TextView
             View continueBtn = newView.findViewById(R.id.continue_btn);
             if (continueBtn != null) {
                 continueBtn.setOnClickListener(v -> openAddWorkout3(v, workoutNameEditText));
-            } else {
-                Log.e("MainActivity", "continue_btn not found in add_workout2");
             }
         } else if (layoutId == R.layout.add_workout3) {
-            selectedDays = new ArrayList<>();
+            if (selectedDays == null) {
+                selectedDays = new ArrayList<>();
+            } else {
+                selectedDays.clear();
+            }
 
             Map<String, List<String>> workoutCountByDay = getWorkoutCountByDay();
 
@@ -620,7 +810,7 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
                 String dayName = dayNames[i];
                 List<String> workoutsForDay = workoutCountByDay.get(dayName);
 
-                int workoutCount = workoutsForDay.size();
+                int workoutCount = workoutsForDay != null ? workoutsForDay.size() : 0;
                 countTextView.setText(String.valueOf(workoutCount));
 
                 dayTextView.setTag(false);
@@ -668,22 +858,36 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
                 });
             }
 
-            // Используем View вместо TextView
             View continueBtn = newView.findViewById(R.id.continue_btn);
             if (continueBtn != null) {
                 continueBtn.setOnClickListener(v -> {
-                    if (!selectedDays.isEmpty()) {
-                        workouts.add(new Workout(selectedWorkoutName, new ArrayList<>(selectedDays)));
-                        saveWorkouts();
-                        combinedAdapter.updateData(workouts, bodyMetrics);
-                        Log.d("MainActivity", "Added workout: " + selectedWorkoutName + ", workouts size: " + workouts.size());
-                        widgetSheet.hide(null);
+                    if (!selectedWorkoutName.isEmpty()) {
+                        if (selectedDays.isEmpty()) {
+                            Toast.makeText(this, "Выберите хотя бы один день недели", Toast.LENGTH_SHORT).show();
+                            return; // Остаёмся на экране
+                        }
+                        try {
+                            String workoutId = UUID.randomUUID().toString();
+                            for (String dayName : selectedDays) {
+                                DayOfWeek dayOfWeek = DAY_OF_WEEK_MAP.get(dayName.toUpperCase());
+                                weeklySchedule.put(dayOfWeek, workoutId);
+                            }
+                            saveWeeklySchedule();
+                            Workout newWorkout = new Workout(workoutId, selectedWorkoutName);
+                            workouts.add(newWorkout);
+                            saveWorkouts();
+                            syncWorkoutDates();
+                            combinedAdapter.updateData(workouts, bodyMetrics);
+                            Log.d("MainActivity", "Added workout: " + selectedWorkoutName + " with ID: " + workoutId);
+                            widgetSheet.hide(null);
+                        } catch (Exception e) {
+                            Log.e("MainActivity", "Error adding workout: " + e.getMessage(), e);
+                            Toast.makeText(this, "Ошибка при добавлении тренировки", Toast.LENGTH_SHORT).show();
+                        }
                     } else {
-                        Toast.makeText(MainActivity.this, "Выберите хотя бы один день", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, "Введите название тренировки", Toast.LENGTH_SHORT).show();
                     }
                 });
-            } else {
-                Log.e("MainActivity", "continue_btn not found in add_workout3");
             }
         } else if (layoutId == R.layout.add_metric) {
             ScrollView scrollView = newView.findViewById(R.id.trainingScrollView);
@@ -695,13 +899,8 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
             TextView metricDescriptionTextView = newView.findViewById(R.id.workout_description);
 
             com.example.logster.AddBodyMetric.setupMetricSelection(
-                    scrollView,
-                    metricList,
-                    topLine,
-                    bottomLine,
-                    centerArrow,
-                    metricNameTextView,
-                    metricDescriptionTextView
+                    scrollView, metricList, topLine, bottomLine,
+                    centerArrow, metricNameTextView, metricDescriptionTextView
             );
         } else if (layoutId == R.layout.add_metric2) {
             ScrollView mainScrollView = newView.findViewById(R.id.main_value_scroll);
@@ -711,20 +910,13 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
             ImageView centerArrow = newView.findViewById(R.id.center_arrow);
 
             com.example.logster.AddBodyMetric.setupNumberPicker(
-                    mainScrollView,
-                    mainValueList,
-                    mainTopLine,
-                    mainBottomLine,
-                    centerArrow,
-                    data
+                    mainScrollView, mainValueList, mainTopLine,
+                    mainBottomLine, centerArrow, data
             );
         } else if (layoutId == R.layout.edit_workout) {
             TextView titleTextView = newView.findViewById(R.id.title);
             if (titleTextView != null && data != null) {
                 titleTextView.setText(data);
-                Log.d("MainActivity", "Set workout name to title: " + data);
-            } else {
-                Log.e("MainActivity", "title not found or data is null in edit_workout");
             }
         }
 
@@ -746,7 +938,6 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
         }
     }
 
-    // Исправленный CombinedAdapter
     private static class CombinedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         private List<Object> items;
         private List<Workout> workouts;
@@ -763,7 +954,6 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
             this.items = new ArrayList<>();
             this.items.addAll(workouts);
             this.items.addAll(bodyMetrics);
-            Log.d("CombinedAdapter", "Initialized with workouts: " + workouts.size() + ", bodyMetrics: " + bodyMetrics.size());
         }
 
         public void updateData(List<Workout> newWorkouts, List<BodyMetric> newBodyMetrics) {
@@ -773,61 +963,37 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
             this.items.addAll(workouts);
             this.items.addAll(bodyMetrics);
             notifyDataSetChanged();
-            Log.d("CombinedAdapter", "Updated data: workouts: " + workouts.size() + ", bodyMetrics: " + bodyMetrics.size());
         }
 
         @Override
         public int getItemViewType(int position) {
-            Object item = items.get(position);
-            if (item instanceof Workout) {
-                return TYPE_WORKOUT;
-            } else if (item instanceof BodyMetric) {
-                return TYPE_METRIC;
-            }
-            Log.e("CombinedAdapter", "Unknown item type at position: " + position);
-            return TYPE_WORKOUT;
+            return items.get(position) instanceof Workout ? TYPE_WORKOUT : TYPE_METRIC;
         }
 
         @NonNull
         @Override
         public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
             View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.widget, parent, false);
-            if (viewType == TYPE_WORKOUT) {
-                return new WorkoutAdapter.WorkoutViewHolder(view);
-            } else {
-                return new BodyMetricAdapter.MetricViewHolder(view);
-            }
+            return viewType == TYPE_WORKOUT ? new WorkoutAdapter.WorkoutViewHolder(view) : new BodyMetricAdapter.MetricViewHolder(view);
         }
 
         @Override
         public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
             Object item = items.get(position);
-            Log.d("CombinedAdapter", "Binding item at position: " + position + ", type: " + (item instanceof Workout ? "Workout" : "BodyMetric"));
             if (holder instanceof WorkoutAdapter.WorkoutViewHolder) {
                 Workout workout = (Workout) item;
                 WorkoutAdapter.WorkoutViewHolder workoutHolder = (WorkoutAdapter.WorkoutViewHolder) holder;
                 workoutHolder.workoutName.setText(workout.name);
                 workoutHolder.workoutName.setVisibility(View.VISIBLE);
-                workoutHolder.workoutDay.setText(activity.getNearestDay(workout.days));
+                workoutHolder.workoutDay.setText(activity.getNearestDay(workout.id, workout.dates));
                 workoutHolder.workoutDay.setVisibility(View.VISIBLE);
                 workoutHolder.workoutCount.setVisibility(View.GONE);
-
-                // Добавляем слушатель нажатия для открытия экрана редактирования
                 workoutHolder.itemView.setOnClickListener(v -> activity.editWorkout(workout.name));
             } else if (holder instanceof BodyMetricAdapter.MetricViewHolder) {
                 BodyMetric metric = (BodyMetric) item;
                 BodyMetricAdapter.MetricViewHolder metricHolder = (BodyMetricAdapter.MetricViewHolder) holder;
-                String displayValue;
-                switch (metric.type.toLowerCase()) {
-                    case "вес":
-                        displayValue = metric.value + "кг";
-                        break;
-                    case "рост":
-                        displayValue = metric.value + "см";
-                        break;
-                    default:
-                        displayValue = metric.value;
-                }
+                String displayValue = metric.type.toLowerCase().equals("вес") ? metric.value + "кг" :
+                        metric.type.toLowerCase().equals("рост") ? metric.value + "см" : metric.value;
                 metricHolder.workoutCount.setText(displayValue);
                 metricHolder.workoutCount.setVisibility(View.VISIBLE);
                 metricHolder.workoutDay.setText(activity.formatDate(metric.timestamp));
@@ -838,15 +1004,12 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
 
         @Override
         public int getItemCount() {
-            int size = items.size();
-            Log.d("CombinedAdapter", "getItemCount: " + size);
-            return size;
+            return items.size();
         }
 
         public void onItemMove(int fromPosition, int toPosition) {
             Object movedItem = items.remove(fromPosition);
             items.add(toPosition, movedItem);
-
             workouts.clear();
             bodyMetrics.clear();
             for (Object item : items) {
@@ -856,13 +1019,7 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
                     bodyMetrics.add((BodyMetric) item);
                 }
             }
-
             notifyItemMoved(fromPosition, toPosition);
-
-            Log.d("CombinedAdapter", "Moved item from position " + fromPosition + " to " + toPosition);
-            Log.d("CombinedAdapter", "New order - workouts: " + workouts.size() + ", bodyMetrics: " + bodyMetrics.size());
-            Log.d("CombinedAdapter", "Items after move: " + items.toString());
-
             activity.saveWorkouts();
             activity.saveBodyMetrics();
         }
@@ -875,7 +1032,6 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
                 bodyMetrics.remove(item);
             }
             notifyItemRemoved(position);
-            Log.d("CombinedAdapter", "Dismissed item at position: " + position);
             activity.saveWorkouts();
             activity.saveBodyMetrics();
         }

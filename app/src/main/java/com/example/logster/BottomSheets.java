@@ -2,6 +2,7 @@ package com.example.logster;
 
 import android.animation.ValueAnimator;
 import android.app.Activity;
+import android.content.Context;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
@@ -10,6 +11,8 @@ import android.view.ViewGroup;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
 import android.widget.FrameLayout;
+
+import com.google.android.material.bottomsheet.BottomSheetDialog;
 
 public class BottomSheets {
 
@@ -20,6 +23,8 @@ public class BottomSheets {
     private int initialTopMargin;
     private FrameLayout.LayoutParams params;
     private boolean isShowing;
+    private BottomSheetDialog bottomSheetDialog;
+    private Context context;
 
     public BottomSheets(Activity activity) {
         this(activity, R.layout.widgets);
@@ -37,7 +42,7 @@ public class BottomSheets {
         );
         initialTopMargin = dpToPx(activity, 70);
         params.topMargin = initialTopMargin;
-        isShowing = false; // Initialize as not showing
+        isShowing = false;
     }
 
     public void setContentView(View view) {
@@ -86,6 +91,88 @@ public class BottomSheets {
         isShowing = true;
     }
 
+    public void showWithLimitedHeight() {
+        if (sheetView == null || rootLayout == null) {
+            Log.e("BottomSheets", "showWithLimitedHeight: sheetView or rootLayout is null");
+            return;
+        }
+
+        screenHeight = rootLayout.getHeight();
+        if (screenHeight == 0) {
+            screenHeight = activity.getResources().getDisplayMetrics().heightPixels;
+        }
+        int limitedHeight = dpToPx(activity, 250);
+        int limitedTopMargin = screenHeight - limitedHeight;
+
+        params.topMargin = screenHeight;
+        sheetView.setLayoutParams(params);
+        sheetView.post(() -> {
+            sheetView.setLayoutParams(new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    limitedHeight
+            ));
+        });
+        if (sheetView.getParent() == null) {
+            rootLayout.addView(sheetView);
+        }
+
+        sheetView.setVisibility(View.VISIBLE);
+        sheetView.bringToFront();
+        ValueAnimator animator = ValueAnimator.ofInt(screenHeight, limitedTopMargin);
+        animator.setDuration(300);
+        animator.addUpdateListener(animation -> {
+            params.topMargin = (int) animation.getAnimatedValue();
+            sheetView.setLayoutParams(params);
+        });
+        animator.start();
+        setSwipeListener();
+        initialTopMargin = limitedTopMargin; // Обновляем initialTopMargin для метода showWithLimitedHeight
+        isShowing = true;
+    }
+
+    public void showWithLimitedHeightAndCallback(Runnable onDismiss) {
+        if (sheetView == null || rootLayout == null) {
+            Log.e("BottomSheets", "showWithLimitedHeightAndCallback: sheetView or rootLayout is null");
+            if (onDismiss != null) onDismiss.run();
+            return;
+        }
+
+        screenHeight = rootLayout.getHeight();
+        if (screenHeight == 0) {
+            screenHeight = activity.getResources().getDisplayMetrics().heightPixels;
+        }
+        int limitedHeight = dpToPx(activity, 250);
+        int limitedTopMargin = screenHeight - limitedHeight;
+
+        params.topMargin = screenHeight;
+        sheetView.setLayoutParams(params);
+        sheetView.post(() -> {
+            sheetView.setLayoutParams(new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    limitedHeight
+            ));
+        });
+        if (sheetView.getParent() == null) {
+            rootLayout.addView(sheetView);
+        }
+
+        sheetView.setVisibility(View.VISIBLE);
+        sheetView.bringToFront();
+        ValueAnimator animator = ValueAnimator.ofInt(screenHeight, limitedTopMargin);
+        animator.setDuration(300);
+        animator.addUpdateListener(animation -> {
+            params.topMargin = (int) animation.getAnimatedValue();
+            sheetView.setLayoutParams(params);
+        });
+        animator.start();
+        setSwipeListener();
+        initialTopMargin = limitedTopMargin;
+        isShowing = true;
+
+        // Устанавливаем callback для вызова при закрытии
+        sheetView.setTag(onDismiss); // Сохраняем callback в tag для использования в hide
+    }
+
     public void hide(Runnable onHidden) {
         if (sheetView == null) {
             Log.e("BottomSheets", "hide: sheetView is null");
@@ -93,6 +180,7 @@ public class BottomSheets {
             return;
         }
 
+        // Плавное закрытие вниз
         ValueAnimator animator = ValueAnimator.ofInt(params.topMargin, screenHeight);
         animator.setDuration(200);
         animator.addUpdateListener(animation -> {
@@ -109,13 +197,18 @@ public class BottomSheets {
                 if (onHidden != null) {
                     onHidden.run();
                 }
-                isShowing = false; // Set flag to false when hidden
+                // Вызываем callback, сохранённый в showWithLimitedHeightAndCallback
+                Object tag = sheetView.getTag();
+                if (tag instanceof Runnable) {
+                    ((Runnable) tag).run();
+                    sheetView.setTag(null); // Очищаем tag после вызова
+                }
+                isShowing = false;
             }
         });
         animator.start();
     }
 
-    // New method to check if the sheet is showing
     public boolean isShowing() {
         return isShowing;
     }
@@ -144,10 +237,13 @@ public class BottomSheets {
                         float deltaY = moveY - downY;
                         totalDeltaY = deltaY;
 
-                        if (deltaY > 0) {
-                            params.topMargin = (int) (initialTopMargin + deltaY);
-                            sheetView.setLayoutParams(params);
+                        int newTopMargin = (int) (initialTopMargin + deltaY);
+                        // Ограничиваем движение вверх
+                        if (newTopMargin < initialTopMargin) {
+                            newTopMargin = initialTopMargin;
                         }
+                        params.topMargin = newTopMargin;
+                        sheetView.setLayoutParams(params);
                         return true;
 
                     case MotionEvent.ACTION_UP:
@@ -191,42 +287,35 @@ public class BottomSheets {
             return;
         }
 
-        // Инициализация screenHeight
         screenHeight = rootLayout.getHeight();
         if (screenHeight == 0) {
             screenHeight = activity.getResources().getDisplayMetrics().heightPixels;
         }
 
-        // Подготавливаем новый экран
         FrameLayout.LayoutParams newParams = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
         );
-        newParams.topMargin = initialTopMargin; // Устанавливаем отступ 70dp
+        newParams.topMargin = initialTopMargin;
         newView.setLayoutParams(newParams);
-        newView.setVisibility(View.GONE); // Скрываем до начала анимации
+        newView.setVisibility(View.GONE);
         if (newView.getParent() == null) {
             rootLayout.addView(newView);
         }
 
-        // Устанавливаем максимальную высоту, сохраняя topMargin
         int maxHeight = screenHeight - initialTopMargin;
         FrameLayout.LayoutParams heightParams = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 maxHeight
         );
-        heightParams.topMargin = initialTopMargin; // Сохраняем отступ 70dp
+        heightParams.topMargin = initialTopMargin;
         newView.setLayoutParams(heightParams);
 
-        // Анимация ухода для текущего экрана
         Animation slideOut = AnimationUtils.loadAnimation(activity, exitAnim);
-        // Анимация входа для нового экрана
         Animation slideIn = AnimationUtils.loadAnimation(activity, enterAnim);
 
-        // Счётчик для отслеживания завершения обеих анимаций
-        final int[] animationCount = {2}; // Две анимации: slideOut и slideIn
+        final int[] animationCount = {2};
 
-        // Обработчик завершения анимаций
         Animation.AnimationListener animationListener = new Animation.AnimationListener() {
             @Override
             public void onAnimationStart(Animation animation) {}
@@ -235,22 +324,19 @@ public class BottomSheets {
             public void onAnimationEnd(Animation animation) {
                 animationCount[0]--;
                 if (animationCount[0] == 0) {
-                    // Удаляем старый экран только после завершения обеих анимаций
                     if (sheetView != null && sheetView.getParent() != null) {
                         rootLayout.removeView(sheetView);
                     }
-                    // Обновляем sheetView
                     sheetView = newView;
                     params = (FrameLayout.LayoutParams) sheetView.getLayoutParams();
                     sheetView.setVisibility(View.VISIBLE);
 
-                    // Устанавливаем обработчик свайпов
                     setSwipeListener();
 
                     if (onComplete != null) {
                         onComplete.run();
                     }
-                    isShowing = true; // Update flag when new view is shown
+                    isShowing = true;
                 }
             }
 
@@ -258,17 +344,15 @@ public class BottomSheets {
             public void onAnimationRepeat(Animation animation) {}
         };
 
-        // Устанавливаем обработчик для обеих анимаций
         slideOut.setAnimationListener(animationListener);
         slideIn.setAnimationListener(animationListener);
 
-        // Запускаем анимации одновременно
         sheetView.startAnimation(slideOut);
         newView.setVisibility(View.VISIBLE);
         newView.startAnimation(slideIn);
     }
-    public View getSheetView() {
+
+    public View getContentView() {
         return sheetView;
     }
 }
-

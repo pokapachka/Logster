@@ -79,7 +79,7 @@ public class AddWorkout {
                         selectedTextView = textView;
                         textView.setSelected(true);
                         lastSelectedWorkout = "своя";
-                        String[] info = workoutInfoMap.get("своя"); // Fixed: Declare info as String[]
+                        String[] info = workoutInfoMap.get("своя");
                         workoutNameTextView.setText(info[0]);
                         workoutDescriptionTextView.setText(info[1]);
                         int scrollY = textView.getTop() + textView.getHeight() / 2

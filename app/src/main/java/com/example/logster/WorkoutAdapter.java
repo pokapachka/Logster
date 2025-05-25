@@ -32,7 +32,7 @@ public class WorkoutAdapter extends RecyclerView.Adapter<WorkoutAdapter.WorkoutV
         Log.d("WorkoutAdapter", "Binding workout at position: " + position + ", name: " + workout.name);
         holder.workoutName.setText(workout.name);
         holder.workoutName.setVisibility(View.VISIBLE);
-        holder.workoutDay.setText(activity.getNearestDay(workout.days));
+        holder.workoutDay.setText(activity.getNearestDay(workout.id, workout.dates));
         holder.workoutDay.setVisibility(View.VISIBLE);
         holder.workoutCount.setVisibility(View.GONE);
     }
