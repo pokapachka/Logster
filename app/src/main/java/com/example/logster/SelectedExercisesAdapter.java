@@ -13,18 +13,24 @@ import java.util.List;
 
 public class SelectedExercisesAdapter extends RecyclerView.Adapter<SelectedExercisesAdapter.ViewHolder> {
     private List<ExercisesAdapter.Exercise> exercises;
-    private OnExerciseRemovedListener onExerciseRemoved;
+    private OnExerciseRemovedListener onExerciseRemovedListener;
     private MainActivity mainActivity;
 
     public interface OnExerciseRemovedListener {
         void onExerciseRemoved(ExercisesAdapter.Exercise exercise);
     }
 
-    public SelectedExercisesAdapter(List<ExercisesAdapter.Exercise> exercises, OnExerciseRemovedListener listener, MainActivity mainActivity) {
-        this.exercises = exercises != null ? new ArrayList<>(exercises) : new ArrayList<>();
-        this.onExerciseRemoved = listener;
+    public SelectedExercisesAdapter(MainActivity mainActivity, OnExerciseRemovedListener listener) {
         this.mainActivity = mainActivity;
-        Log.d("SelectedExercisesAdapter", "Initialized with exercises: " + this.exercises.size());
+        this.onExerciseRemovedListener = listener;
+        this.exercises = new ArrayList<>();
+        Log.d("SelectedExercisesAdapter", "Initialized");
+    }
+
+    public void updateExercises(List<ExercisesAdapter.Exercise> newExercises) {
+        this.exercises = new ArrayList<>(newExercises != null ? newExercises : new ArrayList<>());
+        notifyDataSetChanged();
+        Log.d("SelectedExercisesAdapter", "Updated exercises: " + exercises.size());
     }
 
     @NonNull
@@ -37,28 +43,34 @@ public class SelectedExercisesAdapter extends RecyclerView.Adapter<SelectedExerc
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         ExercisesAdapter.Exercise exercise = exercises.get(position);
-        if (holder.exerciseName == null) {
-            Log.e("SelectedExercisesAdapter", "exerciseName TextView is null at position: " + position);
-            return;
+        if (holder.exerciseName != null) {
+            holder.exerciseName.setText(exercise.getName());
+        } else {
+            Log.e("SelectedExercisesAdapter", "exerciseName is null at position: " + position);
         }
-        if (holder.removeButton == null) {
-            Log.e("SelectedExercisesAdapter", "removeButton ImageView is null at position: " + position);
-            return;
-        }
-        holder.exerciseName.setText(exercise.getName());
-        // Удаляем android:onClick из XML, используем setOnClickListener
-        holder.itemView.setOnClickListener(v -> mainActivity.editSets(exercise));
-        holder.removeButton.setOnClickListener(v -> {
-            if (onExerciseRemoved != null) {
-                onExerciseRemoved.onExerciseRemoved(exercise);
-                Log.d("SelectedExercisesAdapter", "Remove button clicked for exercise: " + exercise.getName());
-            }
-        });
-        // Обновление текста количества подходов
         if (holder.setsText != null) {
             int setCount = exercise.getSets().size();
             holder.setsText.setText(setCount + " " + MainActivity.getSetWordForm(setCount));
+            Log.d("SelectedExercisesAdapter", "Exercise: " + exercise.getName() + ", sets: " + setCount);
+        } else {
+            Log.e("SelectedExercisesAdapter", "setsText is null at position: " + position);
         }
+        if (holder.removeButton != null) {
+            holder.removeButton.setOnClickListener(v -> {
+                if (onExerciseRemovedListener != null) {
+                    onExerciseRemovedListener.onExerciseRemoved(exercise);
+                    Log.d("SelectedExercisesAdapter", "Removed exercise: " + exercise.getName());
+                }
+            });
+        } else {
+            Log.e("SelectedExercisesAdapter", "removeButton is null at position: " + position);
+        }
+        if (holder.addButton != null) {
+            holder.addButton.setOnClickListener(v -> mainActivity.editSets(exercise));
+        } else {
+            Log.e("SelectedExercisesAdapter", "addButton is null at position: " + position);
+        }
+        holder.itemView.setOnClickListener(v -> mainActivity.editSets(exercise));
         Log.d("SelectedExercisesAdapter", "Bound exercise: " + exercise.getName() + ", position: " + position);
     }
 
@@ -67,40 +79,23 @@ public class SelectedExercisesAdapter extends RecyclerView.Adapter<SelectedExerc
         return exercises.size();
     }
 
-    public void updateExercises(List<ExercisesAdapter.Exercise> newExercises) {
-        this.exercises.clear();
-        this.exercises.addAll(newExercises);
-        notifyDataSetChanged();
-        Log.d("SelectedExercisesAdapter", "Updated exercises: " + exercises.size());
-    }
-
     static class ViewHolder extends RecyclerView.ViewHolder {
         TextView exerciseName;
         TextView setsText;
         ImageView removeButton;
         ImageView addButton;
 
-        ViewHolder(View itemView) {
+        ViewHolder(@NonNull View itemView) {
             super(itemView);
             exerciseName = itemView.findViewById(R.id.exercise_name_selected);
             setsText = itemView.findViewById(R.id.sets);
             removeButton = itemView.findViewById(R.id.remove_button);
             addButton = itemView.findViewById(R.id.add_button_selected);
-            if (exerciseName == null) {
-                Log.e("SelectedExercisesAdapter", "Failed to find exercise_name_selected TextView in item_selected_exercise");
+            if (exerciseName == null || setsText == null || removeButton == null || addButton == null) {
+                Log.e("SelectedExercisesAdapter", "ViewHolder initialization failed: exerciseName=" +
+                        (exerciseName != null) + ", setsText=" + (setsText != null) +
+                        ", removeButton=" + (removeButton != null) + ", addButton=" + (addButton != null));
             }
-            if (setsText == null) {
-                Log.e("SelectedExercisesAdapter", "Failed to find sets TextView in item_selected_exercise");
-            }
-            if (removeButton == null) {
-                Log.e("SelectedExercisesAdapter", "Failed to find remove_button ImageView in item_selected_exercise");
-            }
-            if (addButton == null) {
-                Log.e("SelectedExercisesAdapter", "Failed to find add_button_selected ImageView in item_selected_exercise");
-            }
-            Log.d("SelectedExercisesAdapter", "ViewHolder initialized: exerciseName=" + (exerciseName != null) +
-                    ", setsText=" + (setsText != null) + ", removeButton=" + (removeButton != null) +
-                    ", addButton=" + (addButton != null));
         }
     }
 }

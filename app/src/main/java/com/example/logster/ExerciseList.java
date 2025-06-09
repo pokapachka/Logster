@@ -1,7 +1,6 @@
 package com.example.logster;
 
 import android.util.Log;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -20,6 +19,6 @@ public class ExerciseList {
 
     public static List<ExercisesAdapter.Exercise> getAllExercises() {
         Log.d("ExerciseList", "Returning " + EXERCISES.size() + " exercises");
-        return new ArrayList<>(EXERCISES);
+        return new ArrayList<>(EXERCISES); // Защитная копия
     }
 }

@@ -1,6 +1,5 @@
 package com.example.logster;
 
-import android.content.Context;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -12,24 +11,48 @@ import androidx.recyclerview.widget.RecyclerView;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ExercisesAdapter extends RecyclerView.Adapter<ExercisesAdapter.ViewHolder> {
-    private final List<Exercise> exercises;
+public class ExercisesAdapter extends RecyclerView.Adapter<ExercisesAdapter.ExerciseViewHolder> {
+    private List<Exercise> exercises;
     private final ExerciseSelectionListener listener;
-    private final Context context;
+    private final MainActivity activity;
+
+    public ExercisesAdapter(List<Exercise> exercises, ExerciseSelectionListener listener, MainActivity activity) {
+        this.exercises = exercises != null ? new ArrayList<>(exercises) : new ArrayList<>();
+        this.listener = listener;
+        this.activity = activity;
+    }
+
+    @NonNull
+    @Override
+    public ExerciseViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_exercise, parent, false);
+        return new ExerciseViewHolder(view);
+    }
+
+    @Override
+    public void onBindViewHolder(@NonNull ExerciseViewHolder holder, int position) {
+        Exercise exercise = exercises.get(position);
+        holder.bind(exercise);
+    }
+
+    @Override
+    public int getItemCount() {
+        return exercises.size();
+    }
 
     public static class Exercise {
         private final int id;
         private final String name;
-        private final List<String> tags;
         private boolean isSelected;
-        private List<Set> sets;
+        private final List<Set> sets;
+        private final List<String> muscleGroups; // Новое поле для групп мышц
 
-        public Exercise(int id, String name, List<String> tags) {
+        public Exercise(int id, String name, List<String> muscleGroups) {
             this.id = id;
             this.name = name;
-            this.tags = new ArrayList<>(tags);
             this.isSelected = false;
             this.sets = new ArrayList<>();
+            this.muscleGroups = muscleGroups != null ? new ArrayList<>(muscleGroups) : new ArrayList<>();
         }
 
         public int getId() {
@@ -38,10 +61,6 @@ public class ExercisesAdapter extends RecyclerView.Adapter<ExercisesAdapter.View
 
         public String getName() {
             return name;
-        }
-
-        public List<String> getTags() {
-            return tags;
         }
 
         public boolean isSelected() {
@@ -64,71 +83,43 @@ public class ExercisesAdapter extends RecyclerView.Adapter<ExercisesAdapter.View
             sets.remove(set);
         }
 
-        public int getSetCount() {
-            return sets.size();
-        }
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            Exercise exercise = (Exercise) o;
-            return id == exercise.id;
-        }
-
-        @Override
-        public int hashCode() {
-            return Integer.hashCode(id);
+        public List<String> getMuscleGroups() {
+            return new ArrayList<>(muscleGroups);
         }
     }
 
-    public ExercisesAdapter(List<Exercise> exercises, ExerciseSelectionListener listener, Context context) {
-        this.exercises = exercises;
-        this.listener = listener;
-        this.context = context;
-        Log.d("ExercisesAdapter", "Initialized with " + exercises.size() + " exercises");
-    }
-
-    @NonNull
-    @Override
-    public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_exercise, parent, false);
-        Log.d("ExercisesAdapter", "Created ViewHolder for item_exercise");
-        return new ViewHolder(view);
-    }
-
-    @Override
-    public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-        Exercise exercise = exercises.get(position);
-        holder.exerciseName.setText(exercise.getName());
-        holder.checkbox.setSelected(exercise.isSelected());
-        Log.d("ExercisesAdapter", "Bound exercise: " + exercise.getName() + ", selected: " + exercise.isSelected());
-
-        holder.checkbox.setOnClickListener(v -> {
-            Log.d("ExercisesAdapter", "Checkbox clicked for: " + exercise.getName());
-            if (listener != null) {
-                listener.onExerciseSelected(v, exercise);
-            }
-        });
-
-        holder.addButton.setOnClickListener(v -> Log.d("ExercisesAdapter", "Add button clicked for " + exercise.getName()));
-    }
-
-    @Override
-    public int getItemCount() {
-        return exercises.size();
-    }
-
-    static class ViewHolder extends RecyclerView.ViewHolder {
+    class ExerciseViewHolder extends RecyclerView.ViewHolder {
         TextView exerciseName;
-        ImageView checkbox;
-        ImageView addButton;
+        ImageView checkBox;
 
-        ViewHolder(@NonNull View itemView) {
+        ExerciseViewHolder(@NonNull View itemView) {
             super(itemView);
             exerciseName = itemView.findViewById(R.id.exercise_name);
-            checkbox = itemView.findViewById(R.id.checkbox);
-            addButton = itemView.findViewById(R.id.add_button);
-            Log.d("ViewHolder", "Initialized ViewHolder: exerciseName=" + (exerciseName != null) + ", checkbox=" + (checkbox != null) + ", addButton=" + (addButton != null));
+            checkBox = itemView.findViewById(R.id.checkbox);
+            if (checkBox == null || exerciseName == null) {
+                Log.w("ExercisesAdapter", "checkBox or exerciseName not found in item_exercise");
+            }
+        }
+
+        void bind(Exercise exercise) {
+            if (exerciseName != null) {
+                exerciseName.setText(exercise.getName());
+            }
+            if (checkBox != null) {
+                checkBox.setSelected(exercise.isSelected());
+            }
+            itemView.setOnClickListener(v -> {
+                if (listener != null) {
+                    listener.onExerciseSelected(v, exercise);
+                }
+            });
+            if (checkBox != null) {
+                checkBox.setOnClickListener(v -> {
+                    if (listener != null) {
+                        listener.onExerciseSelected(v, exercise);
+                    }
+                });
+            }
         }
     }
 }

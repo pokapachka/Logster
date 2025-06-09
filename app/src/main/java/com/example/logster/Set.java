@@ -9,11 +9,20 @@ public class Set {
     private String id;
     private float weight;
     private int reps;
+    private boolean isCompleted; // Новое поле
 
     public Set(String id, float weight, int reps) {
         this.id = id != null ? id : UUID.randomUUID().toString();
         this.weight = weight;
         this.reps = reps;
+        this.isCompleted = false; // По умолчанию не завершено
+    }
+    public boolean isCompleted() {
+        return isCompleted;
+    }
+
+    public void setCompleted(boolean completed) {
+        isCompleted = completed;
     }
 
     public String getId() {
@@ -41,6 +50,7 @@ public class Set {
         json.put("id", id);
         json.put("weight", weight);
         json.put("reps", reps);
+        json.put("isCompleted", isCompleted); // Сохраняем новое поле
         return json;
     }
 
@@ -48,7 +58,10 @@ public class Set {
         String id = json.getString("id");
         float weight = (float) json.getDouble("weight");
         int reps = json.getInt("reps");
-        return new Set(id, weight, reps);
+        boolean isCompleted = json.optBoolean("isCompleted", false); // Загружаем с дефолтом false
+        Set set = new Set(id, weight, reps);
+        set.setCompleted(isCompleted);
+        return set;
     }
 
     @Override

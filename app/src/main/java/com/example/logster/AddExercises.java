@@ -22,13 +22,12 @@ public class AddExercises extends Fragment implements ExerciseSelectionListener 
     private List<ExercisesAdapter.Exercise> exercises;
     private TextView emptyView;
     private TextView addExercisesBtn;
-    private static final int COLOR_UNSELECTED = 0xFF606062; // Цвет для неактивной кнопки
-    private static final int COLOR_SELECTED = 0xFFFFFFFF;   // Цвет для активной кнопки
+    private static final int COLOR_UNSELECTED = 0xFF606062;
+    private static final int COLOR_SELECTED = 0xFFFFFFFF;
 
     @Nullable
     @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
-                             @Nullable Bundle savedInstanceState) {
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         Log.d("AddExercises", "onCreateView called");
         View view = inflater.inflate(R.layout.add_exercises, container, false);
 
@@ -46,7 +45,8 @@ public class AddExercises extends Fragment implements ExerciseSelectionListener 
             List<ExercisesAdapter.Exercise> selectedExercises = ((MainActivity) getActivity()).getSelectedExercises();
             if (selectedExercises != null) {
                 for (ExercisesAdapter.Exercise exercise : exercises) {
-                    exercise.setSelected(selectedExercises.contains(exercise));
+                    exercise.setSelected(selectedExercises.stream()
+                            .anyMatch(selected -> selected.getId() == exercise.getId()));
                 }
                 updateAddButtonState(selectedExercises);
                 Log.d("AddExercises", "Marked " + selectedExercises.size() + " exercises as selected");
@@ -58,18 +58,12 @@ public class AddExercises extends Fragment implements ExerciseSelectionListener 
         }
 
         // Initialize adapter
-        adapter = new ExercisesAdapter(exercises, this, requireContext());
-        if (recyclerView != null) {
-            recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
-            recyclerView.setAdapter(adapter);
-            recyclerView.setVisibility(exercises.isEmpty() ? View.GONE : View.VISIBLE);
-            if (emptyView != null) {
-                emptyView.setVisibility(exercises.isEmpty() ? View.VISIBLE : View.GONE);
-            }
-            Log.d("AddExercises", "RecyclerView adapter set, item count: " + (adapter != null ? adapter.getItemCount() : 0));
-        } else {
-            Log.e("AddExercises", "RecyclerView is null");
-        }
+        adapter = new ExercisesAdapter(exercises, this, (MainActivity) getActivity());
+        recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
+        recyclerView.setAdapter(adapter);
+        recyclerView.setVisibility(exercises.isEmpty() ? View.VISIBLE : View.GONE);
+        emptyView.setVisibility(exercises.isEmpty() ? View.VISIBLE : View.GONE);
+        Log.d("AddExercises", "RecyclerView adapter set, item count=" + adapter.getItemCount());
 
         // Настройка кнопки закрытия
         View closeButton = view.findViewById(R.id.close);
@@ -78,13 +72,8 @@ public class AddExercises extends Fragment implements ExerciseSelectionListener 
                 Log.d("AddExercises", "Close button clicked");
                 if (getActivity() instanceof MainActivity) {
                     ((MainActivity) getActivity()).backSheetAddExercises(v);
-                } else {
-                    Log.e("AddExercises", "Activity is not MainActivity or is null");
-                    requireActivity().getSupportFragmentManager().popBackStack();
                 }
             });
-        } else {
-            Log.w("AddExercises", "Close button not found");
         }
 
         // Настройка кнопки "Выбрать"
@@ -99,8 +88,6 @@ public class AddExercises extends Fragment implements ExerciseSelectionListener 
                     Log.d("AddExercises", "Select button is disabled");
                 }
             });
-        } else {
-            Log.w("AddExercises", "Add exercises button not found");
         }
 
         return view;
@@ -113,23 +100,19 @@ public class AddExercises extends Fragment implements ExerciseSelectionListener 
             List<ExercisesAdapter.Exercise> selectedExercises = ((MainActivity) getActivity()).getSelectedExercises();
             if (selectedExercises != null) {
                 if (exercise.isSelected()) {
-                    if (!selectedExercises.contains(exercise)) {
+                    if (!selectedExercises.stream().anyMatch(e -> e.getId() == exercise.getId())) {
                         selectedExercises.add(exercise);
                         Log.d("AddExercises", "Added exercise: " + exercise.getName());
                     }
                 } else {
-                    selectedExercises.remove(exercise);
+                    selectedExercises.removeIf(e -> e.getId() == exercise.getId());
                     Log.d("AddExercises", "Removed exercise: " + exercise.getName());
                 }
                 ((MainActivity) getActivity()).onExercisesSelected(selectedExercises);
                 updateAddButtonState(selectedExercises);
-                if (adapter != null) {
-                    adapter.notifyDataSetChanged();
-                    Log.d("AddExercises", "Exercise " + exercise.getName() + " selected: " +
-                            exercise.isSelected() + ", total selected: " + selectedExercises.size());
-                } else {
-                    Log.e("AddExercises", "Adapter is null when notifying data set changed");
-                }
+                adapter.notifyDataSetChanged();
+                Log.d("AddExercises", "Exercise " + exercise.getName() + " selected: " +
+                        exercise.isSelected() + ", total selected: " + selectedExercises.size());
             } else {
                 Log.w("AddExercises", "Selected exercises list is null");
             }
@@ -143,7 +126,6 @@ public class AddExercises extends Fragment implements ExerciseSelectionListener 
         addExercisesBtn.setSelected(hasSelection);
         addExercisesBtn.setEnabled(hasSelection);
 
-        // Анимация изменения цвета фона
         int startColor = hasSelection ? COLOR_UNSELECTED : COLOR_SELECTED;
         int endColor = hasSelection ? COLOR_SELECTED : COLOR_UNSELECTED;
         ValueAnimator colorAnimator = ValueAnimator.ofObject(new ArgbEvaluator(), startColor, endColor);

@@ -1,31 +1,37 @@
 package com.example.logster;
 
-import android.content.Context;
-import android.text.Editable;
-import android.text.TextWatcher;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.ImageView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Consumer;
 
 public class SelectedSetsAdapter extends RecyclerView.Adapter<SelectedSetsAdapter.ViewHolder> {
     private List<Set> sets;
-    private Consumer<Set> onSetRemoved;
+    private OnSetRemovedListener onSetRemovedListener;
     private MainActivity mainActivity;
 
-    public SelectedSetsAdapter(List<Set> sets, Consumer<Set> onSetRemoved, MainActivity mainActivity) {
-        this.sets = sets != null ? new ArrayList<>(sets) : new ArrayList<>();
-        this.onSetRemoved = onSetRemoved;
+    public interface OnSetRemovedListener {
+        void onSetRemoved(Set set);
+    }
+
+    public SelectedSetsAdapter(List<Set> sets, OnSetRemovedListener listener, MainActivity mainActivity) {
+        this.sets = new ArrayList<>(sets != null ? sets : new ArrayList<>());
+        this.onSetRemovedListener = listener;
         this.mainActivity = mainActivity;
-        Log.d("SelectedSetsAdapter", "Initialized with sets: " + this.sets.size());
+        Log.d("SelectedSetsAdapter", "Инициализирован с " + this.sets.size() + " подходами");
+    }
+
+    public void updateSets(List<Set> newSets) {
+        this.sets.clear();
+        this.sets.addAll(newSets != null ? newSets : new ArrayList<>());
+        notifyDataSetChanged();
+        Log.d("SelectedSetsAdapter", "Обновлено подходов: " + sets.size());
     }
 
     @NonNull
@@ -38,121 +44,78 @@ public class SelectedSetsAdapter extends RecyclerView.Adapter<SelectedSetsAdapte
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         Set set = sets.get(position);
-        boolean isPlaceholder = set.getId().startsWith("placeholder_");
-
-        holder.editWeight.setEnabled(!isPlaceholder);
-        holder.editReps.setEnabled(!isPlaceholder);
-
-        if (!isPlaceholder) {
-            holder.editWeight.setText(set.getWeight() > 0 ? String.valueOf(set.getWeight()) : "");
-            holder.editReps.setText(set.getReps() > 0 ? String.valueOf(set.getReps()) : "");
+        if (holder.weightEditText != null) {
+            holder.weightEditText.setText(String.valueOf(set.getWeight()));
         } else {
-            holder.editWeight.setText("");
-            holder.editReps.setText("");
+            Log.e("SelectedSetsAdapter", "weightEditText null на позиции: " + position);
         }
-
-        holder.editWeight.removeTextChangedListener(holder.weightWatcher);
-        holder.editReps.removeTextChangedListener(holder.repsWatcher);
-
-        holder.weightWatcher = new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {}
-            @Override
-            public void afterTextChanged(Editable s) {
-                try {
-                    float weight = s.toString().isEmpty() ? 0.0f : Float.parseFloat(s.toString());
-                    set.setWeight(weight);
-                    saveSet(set);
-                } catch (NumberFormatException e) {
-                    set.setWeight(0.0f);
-                    saveSet(set);
+        if (holder.repsEditText != null) {
+            holder.repsEditText.setText(String.valueOf(set.getReps()));
+        } else {
+            Log.e("SelectedSetsAdapter", "repsEditText null на позиции: " + position);
+        }
+        if (holder.removeButton != null) {
+            holder.removeButton.setOnClickListener(v -> {
+                if (onSetRemovedListener != null && !set.getId().startsWith("placeholder_")) {
+                    onSetRemovedListener.onSetRemoved(set);
+                    sets.remove(set);
+                    notifyItemRemoved(position);
+                    Log.d("SelectedSetsAdapter", "Удалён подход: id=" + set.getId());
                 }
-            }
-        };
-
-        holder.repsWatcher = new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {}
-            @Override
-            public void afterTextChanged(Editable s) {
-                try {
-                    int reps = s.toString().isEmpty() ? 0 : Integer.parseInt(s.toString());
-                    set.setReps(reps);
-                    saveSet(set);
-                } catch (NumberFormatException e) {
-                    set.setReps(0);
-                    saveSet(set);
+            });
+        } else {
+            Log.e("SelectedSetsAdapter", "removeButton null на позиции: " + position);
+        }
+        // Сохранение изменений веса и повторений
+        if (holder.weightEditText != null && holder.repsEditText != null) {
+            holder.weightEditText.setOnFocusChangeListener((v, hasFocus) -> {
+                if (!hasFocus) {
+                    try {
+                        float weight = Float.parseFloat(holder.weightEditText.getText().toString());
+                        set.setWeight(weight);
+                        mainActivity.saveSetToWorkout(set);
+                        Log.d("SelectedSetsAdapter", "Сохранён вес: " + weight + " для подхода: " + set.getId());
+                    } catch (NumberFormatException e) {
+                        Log.w("SelectedSetsAdapter", "Некорректный вес для подхода: " + set.getId());
+                    }
                 }
-            }
-        };
-
-        holder.editWeight.addTextChangedListener(holder.weightWatcher);
-        holder.editReps.addTextChangedListener(holder.repsWatcher);
-
-        // Show numeric keyboard on click
-        holder.editWeight.setOnClickListener(v -> {
-            holder.editWeight.requestFocus();
-            InputMethodManager imm = (InputMethodManager) mainActivity.getSystemService(Context.INPUT_METHOD_SERVICE);
-            imm.showSoftInput(holder.editWeight, InputMethodManager.SHOW_IMPLICIT);
-        });
-
-        holder.editReps.setOnClickListener(v -> {
-            holder.editReps.requestFocus();
-            InputMethodManager imm = (InputMethodManager) mainActivity.getSystemService(Context.INPUT_METHOD_SERVICE);
-            imm.showSoftInput(holder.editReps, InputMethodManager.SHOW_IMPLICIT);
-        });
-
-        holder.removeButton.setOnClickListener(v -> {
-            if (onSetRemoved != null && !isPlaceholder) {
-                onSetRemoved.accept(set);
-                mainActivity.removeSet(set);
-            }
-        });
-
-        holder.addButton.setVisibility(position == sets.size() - 1 && !isPlaceholder ? View.VISIBLE : View.GONE);
-
-        Log.d("SelectedSetsAdapter", "Bound set: " + set.getId() + ", weight: " + set.getWeight() + ", reps: " + set.getReps());
+            });
+            holder.repsEditText.setOnFocusChangeListener((v, hasFocus) -> {
+                if (!hasFocus) {
+                    try {
+                        int reps = Integer.parseInt(holder.repsEditText.getText().toString());
+                        set.setReps(reps);
+                        mainActivity.saveSetToWorkout(set);
+                        Log.d("SelectedSetsAdapter", "Сохранены повторения: " + reps + " для подхода: " + set.getId());
+                    } catch (NumberFormatException e) {
+                        Log.w("SelectedSetsAdapter", "Некорректное количество повторений для подхода: " + set.getId());
+                    }
+                }
+            });
+        }
+        Log.d("SelectedSetsAdapter", "Привязан подход: id=" + set.getId() + ", позиция=" + position);
     }
 
-    private void saveSet(Set set) {
-        if (!set.getId().startsWith("placeholder_")) {
-            mainActivity.saveSetToWorkout(set);
-            Log.d("SelectedSetsAdapter", "Saved set: " + set.getId());
-        }
-    }
     @Override
     public int getItemCount() {
         return sets.size();
     }
 
-    public void updateSets(List<Set> newSets) {
-        this.sets.clear();
-        this.sets.addAll(newSets);
-        notifyDataSetChanged();
-        Log.d("SelectedSetsAdapter", "Updated sets: " + sets.size());
-    }
-
     static class ViewHolder extends RecyclerView.ViewHolder {
-        EditText editWeight;
-        EditText editReps;
+        EditText weightEditText;
+        EditText repsEditText;
         ImageView removeButton;
-        ImageView addButton;
-        TextWatcher weightWatcher;
-        TextWatcher repsWatcher;
 
-        ViewHolder(View itemView) {
+        ViewHolder(@NonNull View itemView) {
             super(itemView);
-            editWeight = itemView.findViewById(R.id.edit_weight);
-            editReps = itemView.findViewById(R.id.edit_reps);
-            removeButton = itemView.findViewById(R.id.checkbox);
-            addButton = itemView.findViewById(R.id.add_button);
-            Log.d("SelectedSetsAdapter", "ViewHolder initialized: editWeight=" + (editWeight != null) +
-                    ", editReps=" + (editReps != null) + ", removeButton=" + (removeButton != null) +
-                    ", addButton=" + (addButton != null));
+            weightEditText = itemView.findViewById(R.id.edit_weight);
+            repsEditText = itemView.findViewById(R.id.edit_reps);
+            removeButton = itemView.findViewById(R.id.remove_set);
+            if (weightEditText == null || repsEditText == null || removeButton == null) {
+                Log.e("SelectedSetsAdapter", "Ошибка инициализации ViewHolder: weightEditText=" +
+                        (weightEditText != null) + ", repsEditText=" + (repsEditText != null) +
+                        ", removeButton=" + (removeButton != null));
+            }
         }
     }
 }

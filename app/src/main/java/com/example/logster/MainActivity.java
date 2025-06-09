@@ -66,7 +66,7 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
     private String selectedWorkoutName;
     private List<String> selectedDays;
     private List<Folder> folders;
-    private List<Workout> workouts;
+    public List<Workout> workouts;
     private List<BodyMetric> bodyMetrics;
     private RecyclerView workoutRecyclerView;
     private CombinedAdapter combinedAdapter;
@@ -91,7 +91,9 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
     public List<ExercisesAdapter.Exercise> getSelectedExercises() {
         return selectedExercises;
     }
-
+    public List<Workout> getWorkouts() {
+        return workouts;
+    }
     private static final Map<String, DayOfWeek> DAY_OF_WEEK_MAP = new HashMap<>();
 
     static {
@@ -125,7 +127,7 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
         mainItems = new ArrayList<>();
         selectedExercises = new ArrayList<>();
 
-        selectedExercisesAdapter = new SelectedExercisesAdapter(new ArrayList<>(selectedExercises), new SelectedExercisesAdapter.OnExerciseRemovedListener() {
+        selectedExercisesAdapter = new SelectedExercisesAdapter(this, new SelectedExercisesAdapter.OnExerciseRemovedListener() {
             @Override
             public void onExerciseRemoved(ExercisesAdapter.Exercise exercise) {
                 selectedExercises.remove(exercise);
@@ -135,15 +137,16 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
                         .findFirst()
                         .orElse(null);
                 if (workout != null) {
-                    workout.exerciseIds.clear();
-                    for (ExercisesAdapter.Exercise ex : selectedExercises) {
-                        workout.exerciseIds.add(ex.getId());
-                    }
+                    workout.exerciseIds.remove(Integer.valueOf(exercise.getId()));
+                    // НЕ удаляем workout.exerciseSets, чтобы сохранить сеты для возможного восстановления
                     saveWorkouts();
+                    Log.d("MainActivity", "Упражнение удалено: " + exercise.getName() + ", id=" + exercise.getId() +
+                            ", оставлено " + workout.exerciseSets.getOrDefault(exercise.getId(), new ArrayList<>()).size() + " подходов в workout.exerciseSets");
+                } else {
+                    Log.w("MainActivity", "Тренировка не найдена: " + selectedWorkoutName);
                 }
-                Log.d("MainActivity", "Exercise removed: " + exercise.getName() + ", remaining: " + selectedExercises.size());
             }
-        }, this);
+        });
 
         workoutRecyclerView = findViewById(R.id.workout_recycler_view);
         workoutRecyclerView.setLayoutManager(new GridLayoutManager(this, 2));
@@ -155,7 +158,7 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
         titleTextView = findViewById(R.id.title_home);
         titleTextView.setText("Logster");
 
-        combinedAdapter = new CombinedAdapter(folders, workouts, bodyMetrics, this);
+        combinedAdapter = new CombinedAdapter(this);
         workoutRecyclerView.setAdapter(combinedAdapter);
 
         ItemTouchHelper itemTouchHelper = new ItemTouchHelper(new ItemTouchHelper.SimpleCallback(
@@ -559,7 +562,7 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
                 bodyMetrics.add(new BodyMetric(UUID.randomUUID().toString(), metricType, value, System.currentTimeMillis()));
                 saveBodyMetrics();
                 updateMainItems();
-                combinedAdapter.updateData(folders, mainItems, bodyMetrics, currentFolderName);
+                combinedAdapter.updateData(folders, workouts, bodyMetrics, currentFolderName);
                 widgetSheet.hide(null);
             }
         });
@@ -571,7 +574,7 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
         loadSpecificDates();
         syncWorkoutDates();
         updateMainItems();
-        combinedAdapter.updateData(folders, mainItems, bodyMetrics, currentFolderName);
+        combinedAdapter.updateData(folders, workouts, bodyMetrics, currentFolderName);
 
         hideSystemUI();
     }
@@ -622,7 +625,7 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
         isInFolder = true;
         backButton.setVisibility(View.VISIBLE);
         updateTitleWithAnimation(folder.name);
-        combinedAdapter.updateData(folders, mainItems, bodyMetrics, currentFolderName);
+        combinedAdapter.updateData(folders, workouts, bodyMetrics, currentFolderName);
         Log.d("MainActivity", "Opened folder: " + folder.name + ", itemIds=" + folder.itemIds.size());
     }
 
@@ -631,7 +634,7 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
         isInFolder = false;
         updateTitleWithAnimation("Logster");
         backButton.setVisibility(View.GONE);
-        combinedAdapter.updateData(folders, mainItems, bodyMetrics, null);
+        combinedAdapter.updateData(folders, workouts, bodyMetrics, null);
     }
 
     private void removeWorkoutFromSchedules(String workoutId) {
@@ -697,7 +700,7 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
         super.onResume();
         navManager.forceSetActiveButton("MainActivity");
         updateMainItems();
-        combinedAdapter.updateData(folders, mainItems, bodyMetrics, currentFolderName);
+        combinedAdapter.updateData(folders, workouts, bodyMetrics, currentFolderName);
     }
 
     public void addWidgets(View view) {
@@ -1099,17 +1102,20 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
                         .orElse(null);
                 if (exercise != null) {
                     exercise.setSelected(true);
+                    List<Set> workoutSets = workout.exerciseSets.getOrDefault(exercise.getId(), new ArrayList<>());
+                    exercise.getSets().clear();
+                    exercise.getSets().addAll(workoutSets);
                     if (!selectedExercises.contains(exercise)) {
                         selectedExercises.add(exercise);
-                        Log.d("MainActivity", "Added exercise: " + exercise.getName() + ", id=" + exerciseId);
+                        Log.d("MainActivity", "Добавлено упражнение: " + exercise.getName() + ", id=" + exerciseId + ", подходов=" + workoutSets.size());
                     }
                 } else {
-                    Log.w("MainActivity", "Exercise not found for id: " + exerciseId);
+                    Log.w("MainActivity", "Упражнение не найдено для id: " + exerciseId);
                 }
             }
-            Log.d("MainActivity", "Loaded " + selectedExercises.size() + " exercises for workout: " + workoutName);
+            Log.d("MainActivity", "Загружено " + selectedExercises.size() + " упражнений для тренировки: " + workoutName);
         } else {
-            Log.w("MainActivity", "Workout not found: " + workoutName);
+            Log.w("MainActivity", "Тренировка не найдена: " + workoutName);
         }
         switchSheet(R.layout.edit_workout, workoutName, false, 0, 0);
     }
@@ -1143,7 +1149,7 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
                             folders.add(folder);
                             saveFolders();
                             updateMainItems();
-                            combinedAdapter.updateData(folders, mainItems, bodyMetrics, currentFolderName);
+                            combinedAdapter.updateData(folders, workouts, bodyMetrics, currentFolderName);
                             widgetSheet.hide(() -> continueBtn.setEnabled(true));
                         } else {
                             Toast.makeText(this, "Папка уже существует", Toast.LENGTH_SHORT).show();
@@ -1280,7 +1286,7 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
                         saveWorkouts();
                         syncWorkoutDates();
                         updateMainItems();
-                        combinedAdapter.updateData(folders, mainItems, bodyMetrics, currentFolderName);
+                        combinedAdapter.updateData(folders, workouts, bodyMetrics, currentFolderName);
                         widgetSheet.hide(null);
                     } else {
                         Toast.makeText(this, "Введите название", Toast.LENGTH_SHORT).show();
@@ -1311,7 +1317,7 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
             com.example.logster.AddBodyMetric.setupNumberPicker(
                     mainScrollView, mainValueList, mainTopLine,
                     mainBottomLine, centerArrow, data);
-        } else if (layoutId == R.layout.edit_workout) {
+        }     else if (layoutId == R.layout.edit_workout) {
             TextView titleTextView = newView.findViewById(R.id.title);
             RecyclerView selectedExercisesRecyclerView = newView.findViewById(R.id.selected_exercises_list);
             View addExercisesBtn = newView.findViewById(R.id.addExercises);
@@ -1321,7 +1327,7 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
                 titleTextView.setText(data);
                 Log.d("MainActivity", "Set title: " + data);
             } else {
-                Log.w("MainActivity", "titleTextView or data is null in edit_workout");
+                Log.w("MainActivity", "titleTextView или data не заданы в edit_workout");
             }
 
             if (selectedExercisesRecyclerView != null) {
@@ -1329,21 +1335,37 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
                 selectedExercisesAdapter.updateExercises(new ArrayList<>(selectedExercises));
                 selectedExercisesRecyclerView.setAdapter(selectedExercisesAdapter);
                 selectedExercisesRecyclerView.setVisibility(selectedExercises.isEmpty() ? View.GONE : View.VISIBLE);
-                Log.d("MainActivity", "Updated selected exercises in edit_workout: " + selectedExercises.size());
+
+                // Подключение ExerciseDragHelper для перетаскивания
+                ExerciseDragHelper dragHelper = new ExerciseDragHelper(selectedExercisesAdapter,
+                        selectedExercises, this, data);
+                ItemTouchHelper itemTouchHelper = new ItemTouchHelper(dragHelper);
+                itemTouchHelper.attachToRecyclerView(selectedExercisesRecyclerView);
+                Log.d("MainActivity", "ExerciseDragHelper подключён к selected_exercises_list");
+
+                // Добавляем анимацию для плавного перетаскивания
+                DefaultItemAnimator animator = new DefaultItemAnimator();
+                animator.setMoveDuration(300);
+                animator.setRemoveDuration(200);
+                animator.setAddDuration(200);
+                animator.setChangeDuration(300);
+                selectedExercisesRecyclerView.setItemAnimator(animator);
+
+                Log.d("MainActivity", "Обновлены выбранные упражнения в edit_workout: " + selectedExercises.size());
             } else {
-                Log.w("MainActivity", "selected_exercises_list RecyclerView is null in edit_workout");
+                Log.e("MainActivity", "selected_exercises_list RecyclerView не найден");
             }
 
             if (addExercisesBtn != null) {
                 addExercisesBtn.setOnClickListener(v -> openAddExercises(v));
             } else {
-                Log.w("MainActivity", "addExercisesBtn not found in edit_workout");
+                Log.w("MainActivity", "addExercisesBtn не найдено в edit_workout");
             }
 
             if (closeBtn != null) {
                 closeBtn.setOnClickListener(v -> backSheetEditWorkout(v));
             } else {
-                Log.w("MainActivity", "closeBtn not found in edit_workout");
+                Log.w("MainActivity", "closeBtn не найден в edit_workout");
             }
         } else if (layoutId == R.layout.add_exercises) {
             RecyclerView exerciseRecyclerView = newView.findViewById(R.id.exercise_list);
@@ -1448,7 +1470,7 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
             } else {
                 Log.w("MainActivity", "closeButton not found in add_exercises");
             }
-        } else if (layoutId == R.layout.edit_exercises) {
+        } if (layoutId == R.layout.edit_exercises) {
             TextView title = newView.findViewById(R.id.title);
             RecyclerView setsList = newView.findViewById(R.id.sets_list);
             FrameLayout addSet = newView.findViewById(R.id.add_set);
@@ -1460,62 +1482,50 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
 
             if (title != null && currentExercise != null) {
                 title.setText(currentExercise.getName());
-                Log.d("MainActivity", "Exercise title set to: " + currentExercise.getName());
+                Log.d("MainActivity", "Заголовок упражнения установлен: " + currentExercise.getName());
             } else {
-                Log.w("MainActivity", "title or currentExercise is null in edit_exercises");
+                Log.w("MainActivity", "title или currentExercise null в edit_exercises");
             }
 
             if (setsList != null && currentExercise != null) {
                 setsList.setLayoutManager(new LinearLayoutManager(this));
-                List<Set> sets = currentExercise.getSets();
-                if (sets.isEmpty()) {
-                    // Add an initial set if none exist
-                    String setId = UUID.randomUUID().toString();
-                    Set initialSet = new Set(setId, 0.0f, 0);
-                    currentExercise.addSet(initialSet);
-                    Workout workout = workouts.stream()
-                            .filter(w -> w.name.equals(selectedWorkoutName))
-                            .findFirst()
-                            .orElse(null);
-                    if (workout != null) {
-                        List<Set> workoutSets = workout.exerciseSets
-                                .computeIfAbsent(currentExercise.getId(), k -> new ArrayList<>());
+                Workout workout = workouts.stream()
+                        .filter(w -> w.name.equals(selectedWorkoutName))
+                        .findFirst()
+                        .orElse(null);
+                List<Set> sets = new ArrayList<>();
+                if (workout != null) {
+                    List<Set> workoutSets = workout.exerciseSets.computeIfAbsent(currentExercise.getId(), k -> new ArrayList<>());
+                    currentExercise.getSets().clear();
+                    currentExercise.getSets().addAll(workoutSets);
+                    sets.addAll(workoutSets);
+                    if (sets.isEmpty()) {
+                        String setId = UUID.randomUUID().toString();
+                        Set initialSet = new Set(setId, 0.0f, 0);
+                        currentExercise.addSet(initialSet);
                         workoutSets.add(initialSet);
+                        sets.add(initialSet);
                         saveWorkouts();
+                        Log.d("MainActivity", "Добавлен начальный подход для упражнения: " + currentExercise.getName());
                     }
-                    Log.d("MainActivity", "Added initial set for exercise: " + currentExercise.getName());
                 }
                 SelectedSetsAdapter setsAdapter = new SelectedSetsAdapter(sets, set -> {
                     if (!set.getId().startsWith("placeholder_")) {
-                        currentExercise.removeSet(set);
-                        Workout workout = workouts.stream()
-                                .filter(w -> w.name.equals(selectedWorkoutName))
-                                .findFirst()
-                                .orElse(null);
-                        if (workout != null) {
-                            List<Set> workoutSets = workout.exerciseSets
-                                    .computeIfAbsent(currentExercise.getId(), k -> new ArrayList<>());
-                            workoutSets.removeIf(s -> s.getId().equals(set.getId()));
-                            if (workoutSets.isEmpty()) {
-                                workout.exerciseSets.remove(currentExercise.getId());
-                            }
-                            saveWorkouts();
-                        }
-                        setsList.setVisibility(currentExercise.getSets().isEmpty() ? View.GONE : View.VISIBLE);
-                        Log.d("MainActivity", "Set removed: " + set.getId());
+                        removeSet(set);
+                        setsList.setVisibility(sets.isEmpty() ? View.GONE : View.VISIBLE);
+                        Log.d("MainActivity", "Подход удалён через адаптер: " + set.getId());
                     }
                 }, this);
                 setsList.setAdapter(setsAdapter);
-                setsList.setVisibility(View.VISIBLE); // Always visible since we ensure at least one set
-                // Ensure add_set is below the RecyclerView using LinearLayout.LayoutParams
+                setsList.setVisibility(sets.isEmpty() ? View.GONE : View.VISIBLE);
                 LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) addSet.getLayoutParams();
                 params.width = LinearLayout.LayoutParams.MATCH_PARENT;
-                params.height = dpToPx(70); // Maintain the height as defined
-                params.setMargins(dpToPx(10), dpToPx(10), dpToPx(15), 0); // Adjust margins as needed
+                params.height = dpToPx(70);
+                params.setMargins(dpToPx(10), dpToPx(10), dpToPx(15), 0);
                 addSet.setLayoutParams(params);
-                Log.d("MainActivity", "Sets list initialized with " + sets.size() + " sets");
+                Log.d("MainActivity", "Список подходов инициализирован с " + sets.size() + " подходами");
             } else {
-                Log.w("MainActivity", "sets_list or currentExercise is null in edit_exercises");
+                Log.w("MainActivity", "sets_list или currentExercise null в edit_exercises");
             }
 
             if (addSet != null && currentExercise != null) {
@@ -1528,8 +1538,7 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
                             .findFirst()
                             .orElse(null);
                     if (workout != null) {
-                        List<Set> workoutSets = workout.exerciseSets
-                                .computeIfAbsent(currentExercise.getId(), k -> new ArrayList<>());
+                        List<Set> workoutSets = workout.exerciseSets.computeIfAbsent(currentExercise.getId(), k -> new ArrayList<>());
                         workoutSets.add(newSet);
                         saveWorkouts();
                     }
@@ -1537,16 +1546,16 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
                         ((SelectedSetsAdapter) setsList.getAdapter()).updateSets(new ArrayList<>(currentExercise.getSets()));
                     }
                     setsList.setVisibility(View.VISIBLE);
-                    Log.d("MainActivity", "Added new set: " + setId);
+                    Log.d("MainActivity", "Добавлен новый подход: " + setId);
                 });
             } else {
-                Log.w("MainActivity", "add_set or currentExercise is null in edit_exercises");
+                Log.w("MainActivity", "add_set или currentExercise null в edit_exercises");
             }
 
             if (closeButton != null) {
                 closeButton.setOnClickListener(v -> backSheetEditExercises(v));
             } else {
-                Log.w("MainActivity", "closeButton not found in edit_exercises");
+                Log.w("MainActivity", "closeButton не найден в edit_exercises");
             }
         }
 
@@ -1640,20 +1649,23 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
                     .findFirst()
                     .orElse(null);
             if (workout != null) {
-                List<Set> workoutSets = workout.exerciseSets
-                        .computeIfAbsent(exercise.getId(), k -> new ArrayList<>());
+                List<Set> workoutSets = workout.exerciseSets.computeIfAbsent(exercise.getId(), k -> new ArrayList<>());
                 workoutSets.removeIf(s -> s.getId().equals(set.getId()));
                 if (workoutSets.isEmpty()) {
                     workout.exerciseSets.remove(exercise.getId());
                 }
                 saveWorkouts();
+                Log.d("MainActivity", "Подход удалён окончательно: id=" + set.getId() + ", упражнение=" + exercise.getName());
+            } else {
+                Log.w("MainActivity", "Тренировка не найдена: " + selectedWorkoutName);
             }
-            Log.d("MainActivity", "Set removed: " + set.getId());
+        } else {
+            Log.w("MainActivity", "Упражнение не найдено для подхода: " + set.getId());
         }
     }
     public void saveSetToWorkout(Set set) {
         ExercisesAdapter.Exercise exercise = selectedExercises.stream()
-                .filter(e -> e.getSets().contains(set))
+                .filter(e -> e.getSets().stream().anyMatch(s -> s.getId().equals(set.getId())))
                 .findFirst()
                 .orElse(null);
         if (exercise != null) {
@@ -1662,13 +1674,18 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
                     .findFirst()
                     .orElse(null);
             if (workout != null) {
-                List<Set> workoutSets = workout.exerciseSets
-                        .computeIfAbsent(exercise.getId(), k -> new ArrayList<>());
+                List<Set> workoutSets = workout.exerciseSets.computeIfAbsent(exercise.getId(), k -> new ArrayList<>());
                 workoutSets.removeIf(s -> s.getId().equals(set.getId()));
-                workoutSets.add(set);
+                workoutSets.add(new Set(set.getId(), set.getWeight(), set.getReps()));
+                exercise.getSets().clear();
+                exercise.getSets().addAll(workoutSets);
                 saveWorkouts();
-                Log.d("MainActivity", "Set saved: " + set.getId() + ", weight: " + set.getWeight() + ", reps: " + set.getReps());
+                Log.d("MainActivity", "Подход сохранён: id=" + set.getId() + ", вес=" + set.getWeight() + ", повторения=" + set.getReps());
+            } else {
+                Log.w("MainActivity", "Тренировка не найдена: " + selectedWorkoutName);
             }
+        } else {
+            Log.w("MainActivity", "Упражнение не найдено для подхода: " + set.getId());
         }
     }
     private void onExerciseRemoved(ExercisesAdapter.Exercise exercise) {
@@ -1693,5 +1710,9 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
                 R.anim.slide_in_left
         );
         Log.d("MainActivity", "Returned to edit_workout from edit_exercises");
+    }
+    public void saveWorkoutData() {
+        saveWorkouts();
+        Log.d("MainActivity", "Данные тренировок сохранены через saveWorkoutData");
     }
 }

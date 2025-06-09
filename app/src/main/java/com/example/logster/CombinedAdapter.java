@@ -12,52 +12,51 @@ import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class CombinedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     public List<Object> items;
     private List<Folder> folders;
     private List<Workout> workouts;
-    private List<Object> mainItems;
     private List<BodyMetric> bodyMetrics;
     private MainActivity activity;
+    private String currentFolderName;
 
     private static final int TYPE_FOLDER = 0;
     private static final int TYPE_WORKOUT = 1;
     private static final int TYPE_METRIC = 2;
 
-    public CombinedAdapter(List<Folder> folders, List<Workout> workouts, List<BodyMetric> bodyMetrics, MainActivity activity) {
-        this.folders = folders;
-        this.workouts = workouts;
-        this.bodyMetrics = bodyMetrics;
+    public CombinedAdapter(MainActivity activity) {
         this.activity = activity;
         this.items = new ArrayList<>();
-        this.mainItems = new ArrayList<>();
-        Log.d("CombinedAdapter", "Initialized: folders=" + folders.size() + ", workouts=" + workouts.size() + ", bodyMetrics=" + bodyMetrics.size());
+        this.folders = new ArrayList<>();
+        this.workouts = new ArrayList<>();
+        this.bodyMetrics = new ArrayList<>();
+        this.currentFolderName = null;
+        Log.d("CombinedAdapter", "Инициализирован с пустыми данными");
     }
 
-    public void updateData(List<Folder> folders, List<Object> mainItems, List<BodyMetric> bodyMetrics, String currentFolderName) {
+    public void updateData(List<Folder> folders, List<Workout> workouts, List<BodyMetric> bodyMetrics, String currentFolderName) {
+        this.folders = new ArrayList<>(folders);
+        this.workouts = new ArrayList<>(workouts);
+        this.bodyMetrics = new ArrayList<>(bodyMetrics);
+        this.currentFolderName = currentFolderName;
         this.items.clear();
-        this.folders = folders;
-        this.mainItems = mainItems;
-        this.bodyMetrics = bodyMetrics;
 
         if (currentFolderName != null) {
-            // Внутри папки: показываем только элементы, принадлежащие папке
+            // Внутри папки: отображаем только элементы, принадлежащие папке
             Folder folder = folders.stream()
                     .filter(f -> f.name.equals(currentFolderName))
                     .findFirst()
                     .orElse(null);
             if (folder != null) {
-                Log.d("CombinedAdapter", "Processing folder: " + folder.name + ", itemIds=" + folder.itemIds);
                 for (String itemId : folder.itemIds) {
                     Workout workout = workouts.stream()
                             .filter(w -> w.id.equals(itemId))
                             .findFirst()
                             .orElse(null);
                     if (workout != null) {
-                        this.items.add(workout);
-                        Log.d("CombinedAdapter", "Added workout to folder: " + workout.name + ", id=" + itemId);
+                        items.add(workout);
+                        Log.d("CombinedAdapter", "Добавлена тренировка в папку: " + workout.name + ", id=" + itemId);
                         continue;
                     }
                     BodyMetric metric = bodyMetrics.stream()
@@ -65,29 +64,43 @@ public class CombinedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
                             .findFirst()
                             .orElse(null);
                     if (metric != null) {
-                        this.items.add(metric);
-                        Log.d("CombinedAdapter", "Added metric to folder: " + metric.type + ", id=" + itemId);
+                        items.add(metric);
+                        Log.d("CombinedAdapter", "Добавлена метрика в папку: " + metric.type + ", id=" + itemId);
                     } else {
-                        Log.w("CombinedAdapter", "Item not found for id: " + itemId);
+                        Log.w("CombinedAdapter", "Элемент не найден для id: " + itemId + " в папке: " + currentFolderName);
                     }
                 }
             } else {
-                Log.w("CombinedAdapter", "Folder not found: " + currentFolderName);
+                Log.w("CombinedAdapter", "Папка не найдена: " + currentFolderName);
             }
         } else {
-            // Главный экран: показываем папки и элементы вне папок
-            this.items.addAll(mainItems);
-            Log.d("CombinedAdapter", "Main screen items: " + mainItems.size());
+            // Главный экран: отображаем папки и элементы вне папок
+            List<String> folderItemIds = folders.stream()
+                    .flatMap(f -> f.itemIds.stream())
+                    .collect(Collectors.toList());
+            items.addAll(folders);
+            for (Workout workout : workouts) {
+                if (!folderItemIds.contains(workout.id)) {
+                    items.add(workout);
+                }
+            }
+            for (BodyMetric metric : bodyMetrics) {
+                if (!folderItemIds.contains(metric.id)) {
+                    items.add(metric);
+                }
+            }
+            Log.d("CombinedAdapter", "Элементы главного экрана: " + items.size());
         }
         notifyDataSetChanged();
-        Log.d("CombinedAdapter", "Updated data: folder=" + currentFolderName + ", items=" + items.size());
+        Log.d("CombinedAdapter", "Данные обновлены: папка=" + currentFolderName + ", элементов=" + items.size() +
+                ", папок=" + folders.size() + ", тренировок=" + workouts.size() + ", метрик=" + bodyMetrics.size());
     }
 
     @Override
     public int getItemViewType(int position) {
         Object item = items.get(position);
         if (item instanceof Folder) return TYPE_FOLDER;
-        else if (item instanceof Workout) return TYPE_WORKOUT;
+        if (item instanceof Workout) return TYPE_WORKOUT;
         return TYPE_METRIC;
     }
 
@@ -95,15 +108,17 @@ public class CombinedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
     @Override
     public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         LayoutInflater inflater = LayoutInflater.from(parent.getContext());
-        if (viewType == TYPE_FOLDER) {
-            View view = inflater.inflate(R.layout.folder, parent, false);
-            return new FolderViewHolder(view);
-        } else if (viewType == TYPE_WORKOUT) {
-            View view = inflater.inflate(R.layout.widget, parent, false);
-            return new WorkoutViewHolder(view);
-        } else {
-            View view = inflater.inflate(R.layout.widget_body, parent, false);
-            return new MetricViewHolder(view);
+        View view;
+        switch (viewType) {
+            case TYPE_FOLDER:
+                view = inflater.inflate(R.layout.folder, parent, false);
+                return new FolderViewHolder(view);
+            case TYPE_WORKOUT:
+                view = inflater.inflate(R.layout.widget, parent, false);
+                return new WorkoutViewHolder(view);
+            default:
+                view = inflater.inflate(R.layout.widget_body, parent, false);
+                return new MetricViewHolder(view);
         }
     }
 
@@ -114,44 +129,40 @@ public class CombinedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
             Folder folder = (Folder) item;
             FolderViewHolder folderHolder = (FolderViewHolder) holder;
             folderHolder.folderName.setText(folder.name);
-            // Используем getItemCount() из Folder
-            folderHolder.items.setText(getItemsText(folder.getItemCount()));
+            folderHolder.itemsCount.setText(getItemsText(folder.getItemCount()));
             folderHolder.itemView.setOnClickListener(v -> activity.openFolder(folder));
+            Log.d("CombinedAdapter", "Привязана папка: " + folder.name + ", элементов=" + folder.getItemCount());
         } else if (holder instanceof WorkoutViewHolder) {
             Workout workout = (Workout) item;
             WorkoutViewHolder workoutHolder = (WorkoutViewHolder) holder;
             workoutHolder.workoutName.setText(workout.name);
             workoutHolder.workoutDay.setText(activity.getNearestDay(workout.id, workout.dates));
+            // Подсчёт тренировок на текущей неделе
             LocalDate today = LocalDate.now();
             LocalDate endOfWeek = today.with(TemporalAdjusters.nextOrSame(java.time.DayOfWeek.SUNDAY));
             long weekWorkoutCount = workout.dates.stream()
-                    .map(date -> {
+                    .filter(date -> {
                         try {
-                            return LocalDate.parse(date);
+                            LocalDate localDate = LocalDate.parse(date);
+                            return !localDate.isBefore(today) && !localDate.isAfter(endOfWeek);
                         } catch (Exception e) {
-                            Log.e("CombinedAdapter", "Error parsing date: " + date, e);
-                            return null;
+                            Log.e("CombinedAdapter", "Ошибка разбора даты: " + date, e);
+                            return false;
                         }
                     })
-                    .filter(date -> date != null && !date.isBefore(today) && !date.isAfter(endOfWeek))
                     .count();
             workoutHolder.workoutCount.setText(String.valueOf(weekWorkoutCount));
             workoutHolder.itemView.setOnClickListener(v -> activity.editWorkout(workout.name));
+            Log.d("CombinedAdapter", "Привязана тренировка: " + workout.name + ", тренировок на неделе=" + weekWorkoutCount);
         } else if (holder instanceof MetricViewHolder) {
             BodyMetric metric = (BodyMetric) item;
             MetricViewHolder metricHolder = (MetricViewHolder) holder;
             String displayValue = metric.type.toLowerCase().equals("вес") ? metric.value + " кг" :
                     metric.type.toLowerCase().equals("рост") ? metric.value + " см" : metric.value;
-            metricHolder.countBodyMetrics.setText(displayValue);
-            metricHolder.notes.setText(activity.formatDate(metric.timestamp));
+            metricHolder.metricValue.setText(displayValue);
+            metricHolder.timestamp.setText(activity.formatDate(metric.timestamp));
+            Log.d("CombinedAdapter", "Привязана метрика: " + metric.type + ", значение=" + displayValue);
         }
-    }
-
-    private String getItemsText(int count) {
-        if (count == 0) return "0 элементов";
-        if (count == 1) return "1 элемент";
-        if (count == 2 || count == 3 || count == 4) return count + " элемента";
-        return count + " элементов";
     }
 
     @Override
@@ -159,14 +170,45 @@ public class CombinedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
         return items.size();
     }
 
+    private String getItemsText(int count) {
+        if (count == 0) return "0 элементов";
+        if (count == 1) return "1 элемент";
+        if (count >= 2 && count <= 4) return count + " элемента";
+        return count + " элементов";
+    }
+
+    public void setWorkouts(List<Workout> workouts) {
+        this.workouts = new ArrayList<>(workouts);
+        Log.d("CombinedAdapter", "Обновлены тренировки: " + workouts.size());
+    }
+
+    public void setBodyMetrics(List<BodyMetric> bodyMetrics) {
+        this.bodyMetrics = new ArrayList<>(bodyMetrics);
+        Log.d("CombinedAdapter", "Обновлены метрики: " + bodyMetrics.size());
+    }
+
+    public int getFolderPosition(String folderName) {
+        for (int i = 0; i < items.size(); i++) {
+            if (items.get(i) instanceof Folder && ((Folder) items.get(i)).name.equals(folderName)) {
+                return i;
+            }
+        }
+        Log.w("CombinedAdapter", "Позиция папки не найдена для: " + folderName);
+        return -1;
+    }
+
     static class FolderViewHolder extends RecyclerView.ViewHolder {
         TextView folderName;
-        TextView items;
+        TextView itemsCount;
 
-        FolderViewHolder(View itemView) {
+        FolderViewHolder(@NonNull View itemView) {
             super(itemView);
             folderName = itemView.findViewById(R.id.folder_name);
-            items = itemView.findViewById(R.id.items);
+            itemsCount = itemView.findViewById(R.id.items);
+            if (folderName == null || itemsCount == null) {
+                Log.e("CombinedAdapter", "Ошибка инициализации FolderViewHolder: folderName=" +
+                        (folderName != null) + ", itemsCount=" + (itemsCount != null));
+            }
         }
     }
 
@@ -175,43 +217,31 @@ public class CombinedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
         TextView workoutDay;
         TextView workoutCount;
 
-        WorkoutViewHolder(View itemView) {
+        WorkoutViewHolder(@NonNull View itemView) {
             super(itemView);
             workoutName = itemView.findViewById(R.id.workout_name);
             workoutDay = itemView.findViewById(R.id.workout_day);
             workoutCount = itemView.findViewById(R.id.workout_count);
+            if (workoutName == null || workoutDay == null || workoutCount == null) {
+                Log.e("CombinedAdapter", "Ошибка инициализации WorkoutViewHolder: workoutName=" +
+                        (workoutName != null) + ", workoutDay=" + (workoutDay != null) +
+                        ", workoutCount=" + (workoutCount != null));
+            }
         }
     }
 
     static class MetricViewHolder extends RecyclerView.ViewHolder {
-        TextView countBodyMetrics;
-        TextView notes;
+        TextView metricValue;
+        TextView timestamp;
 
-        MetricViewHolder(View itemView) {
+        MetricViewHolder(@NonNull View itemView) {
             super(itemView);
-            countBodyMetrics = itemView.findViewById(R.id.count_body_metrics);
-            notes = itemView.findViewById(R.id.notes);
-        }
-    }
-
-    public void setWorkouts(List<Workout> workouts) {
-        this.workouts = workouts;
-        Log.d("CombinedAdapter", "Set workouts: size=" + (workouts != null ? workouts.size() : 0));
-    }
-
-    public void setBodyMetrics(List<BodyMetric> bodyMetrics) {
-        this.bodyMetrics = bodyMetrics;
-        Log.d("CombinedAdapter", "Set bodyMetrics: size=" + (bodyMetrics != null ? bodyMetrics.size() : 0));
-    }
-
-    // Новый метод для получения позиции папки по её имени
-    public int getFolderPosition(String folderName) {
-        for (int i = 0; i < items.size(); i++) {
-            Object item = items.get(i);
-            if (item instanceof Folder && ((Folder) item).name.equals(folderName)) {
-                return i;
+            metricValue = itemView.findViewById(R.id.count_body_metrics);
+            timestamp = itemView.findViewById(R.id.notes);
+            if (metricValue == null || timestamp == null) {
+                Log.e("CombinedAdapter", "Ошибка инициализации MetricViewHolder: metricValue=" +
+                        (metricValue != null) + ", timestamp=" + (timestamp != null));
             }
         }
-        return -1;
     }
 }
