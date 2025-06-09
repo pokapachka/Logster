@@ -1,0 +1,256 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/ProfileLayout"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/rounded_top"
+    android:fontFamily="sans-serif"
+    android:paddingBottom="20dp">
+
+    <View
+        android:layout_width="80dp"
+        android:layout_height="4dp"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="5dp"
+        android:background="@drawable/handle_background" />
+
+    <FrameLayout
+        android:id="@+id/close"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:layout_marginStart="10dp"
+        android:layout_marginTop="35dp">
+
+        <ImageView
+            android:id="@+id/btn_plus"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_gravity="center"
+            android:src="@drawable/arrowdown" />
+    </FrameLayout>
+
+    <RelativeLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="30dp"
+        android:layout_marginStart="70dp"
+        android:layout_marginEnd="20dp">
+        <ImageView
+            android:id="@+id/logout"
+            android:layout_alignParentEnd="true"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginEnd="50dp"
+            android:background="@drawable/logout"
+            android:clickable="true"
+            android:focusable="true" />
+        <ImageView
+            android:id="@+id/delete"
+            android:layout_alignParentEnd="true"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@drawable/delete"
+            android:clickable="true"
+            android:focusable="true" />
+    </RelativeLayout>
+
+    <TextView
+        android:id="@+id/head"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/close"
+        android:layout_marginStart="15dp"
+        android:layout_marginTop="30dp"
+        android:text="Профиль"
+        android:textColor="#FFFFFF"
+        android:textSize="30sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/description"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/head"
+        android:layout_marginStart="15dp"
+        android:layout_marginTop="10dp"
+        android:layout_marginEnd="15dp"
+        android:text="То как вы будете выглядеть в чате"
+        android:textColor="#FFFFFF"
+        android:textSize="15sp" />
+
+    <FrameLayout
+        android:id="@+id/edit_tag"
+        android:layout_width="match_parent"
+        android:layout_height="70dp"
+        android:layout_below="@id/description"
+        android:layout_marginStart="10dp"
+        android:layout_marginTop="30dp"
+        android:layout_marginEnd="15dp">
+
+        <ImageView
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:layout_gravity="center_vertical"
+            android:background="@drawable/dog" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="55dp"
+            android:layout_marginTop="15dp"
+            android:text="Тег"
+            android:textColor="#FFFFFF"
+            android:textSize="15sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="55dp"
+            android:layout_marginTop="35dp"
+            android:text="Задайте для общения"
+            android:textColor="#ABACB5"
+            android:textSize="15sp" />
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:layout_gravity="center_vertical"
+                android:background="@drawable/add_ex" />
+        </RelativeLayout>
+    </FrameLayout>
+
+    <FrameLayout
+        android:id="@+id/edit_image"
+        android:layout_width="match_parent"
+        android:layout_height="70dp"
+        android:layout_below="@id/edit_tag"
+        android:layout_marginStart="10dp"
+        android:layout_marginEnd="15dp">
+
+        <ImageView
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:layout_gravity="center_vertical"
+            android:background="@drawable/profile" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="55dp"
+            android:layout_marginTop="15dp"
+            android:text="Фото"
+            android:textColor="#FFFFFF"
+            android:textSize="15sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="55dp"
+            android:layout_marginTop="35dp"
+            android:text="Ваше фото в чате"
+            android:textColor="#ABACB5"
+            android:textSize="15sp" />
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:layout_gravity="center_vertical"
+                android:background="@drawable/add_ex" />
+        </RelativeLayout>
+    </FrameLayout>
+
+    <FrameLayout
+        android:id="@+id/edit_bio"
+        android:layout_width="match_parent"
+        android:layout_height="70dp"
+        android:layout_below="@id/edit_image"
+        android:layout_marginStart="10dp"
+        android:layout_marginEnd="15dp">
+
+        <ImageView
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:layout_gravity="center_vertical"
+            android:background="@drawable/bio" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="55dp"
+            android:layout_marginTop="15dp"
+            android:text="О себе"
+            android:textColor="#FFFFFF"
+            android:textSize="15sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="55dp"
+            android:layout_marginTop="35dp"
+            android:text="Расскажите о себе"
+            android:textColor="#ABACB5"
+            android:textSize="15sp" />
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:layout_gravity="center_vertical"
+                android:background="@drawable/add_ex" />
+        </RelativeLayout>
+    </FrameLayout>
+
+    <RelativeLayout
+        android:id="@+id/continue_profile"
+        android:layout_width="160dp"
+        android:layout_height="50dp"
+        android:layout_below="@id/edit_bio"
+        android:layout_alignParentEnd="true"
+        android:layout_marginTop="30dp"
+        android:layout_marginEnd="15dp"
+        android:background="@drawable/enter_btn2"
+        android:clickable="true"
+        android:focusable="true">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_alignParentEnd="true"
+            android:layout_marginEnd="20dp"
+            android:gravity="center"
+            android:text="продолжить"
+            android:textColor="@color/black"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <ImageView
+            android:id="@+id/center_arrow"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:layout_marginStart="15dp"
+            android:layout_marginEnd="5dp"
+            android:src="@drawable/continue3" />
+    </RelativeLayout>
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
+</RelativeLayout>

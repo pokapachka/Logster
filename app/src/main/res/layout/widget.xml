@@ -2,14 +2,14 @@
 <RelativeLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="188dp"
+    android:layout_height="180dp"
     android:layout_marginBottom="10dp"
     android:layout_marginStart="5dp"
     android:layout_marginEnd="5dp"
     android:fontFamily="sans-serif"
-    android:background="@drawable/add_widget">
+    android:background="@drawable/widget_background">
 
-    <!-- Цифра для количества прошедших тренировок (вверху) -->
+    <!-- Цифра для количества тренировок (вверху) -->
     <TextView
         android:id="@+id/workout_count"
         android:layout_width="wrap_content"
@@ -17,17 +17,19 @@
         android:layout_alignParentTop="true"
         android:layout_marginTop="20dp"
         android:layout_marginStart="40dp"
-        android:text="1"
-        android:textSize="40sp"
+        android:text="0"
+        android:textSize="36sp"
         android:textColor="#FFFFFF"
-        android:textStyle="bold" />
+        android:textStyle="bold"
+        android:maxLines="1"
+        android:ellipsize="end" />
 
     <ImageView
         android:layout_width="25dp"
         android:layout_height="16dp"
         android:layout_alignParentEnd="true"
         android:layout_marginTop="20dp"
-        android:layout_marginRight="20dp"
+        android:layout_marginEnd="20dp"
         android:background="@drawable/settingwidget"/>
 
     <!-- Название тренировки (внизу) -->
@@ -40,8 +42,11 @@
         android:layout_marginStart="20dp"
         android:layout_marginEnd="10dp"
         android:text="Название тренировки"
-        android:textSize="15sp"
-        android:textColor="#FFFFFF" />
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="#FFFFFF"
+        android:maxLines="1"
+        android:ellipsize="end"/>
 
     <!-- Ближайший день (внизу, под названием тренировки) -->
     <TextView

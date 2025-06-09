@@ -15,74 +15,64 @@
         android:layout_marginTop="5dp"
         android:background="@drawable/handle_background" />
 
-    <!-- День недели -->
-    <TextView
-        android:id="@+id/day_of_week"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="День недели"
-        android:textSize="30sp"
-        android:textStyle="bold"
-        android:textColor="#FFFFFF"
-        android:layout_marginStart="15dp"
-        android:layout_marginTop="30dp" />
-
-    <!-- Дата (число и месяц) -->
-    <TextView
-        android:id="@+id/date_text"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="ХХ месяц"
-        android:textSize="15sp"
-        android:textColor="#FFFFFF"
-        android:layout_marginStart="15dp"
-        android:layout_marginTop="10dp"
-        android:layout_below="@id/day_of_week" />
-
-    <!-- Индикатор "Сегодня" (если применимо) -->
-    <TextView
-        android:id="@+id/today_indicator"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Сегодня"
-        android:textSize="15sp"
-        android:textColor="#FFFFFF"
-        android:layout_marginStart="15dp"
-        android:layout_marginTop="10dp"
-        android:layout_below="@id/date_text"
-        android:visibility="gone" />
-
-    <LinearLayout
-        android:id="@+id/current_workouts_container"
+    <!-- Прокручиваемый контейнер для всего содержимого, кроме ручки -->
+    <ScrollView
+        android:id="@+id/main_scroll_view"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginStart="15dp"
-        android:layout_marginEnd="15dp"
-        android:layout_marginTop="10dp"
-        android:orientation="vertical"
-        android:layout_below="@id/today_indicator" />
+        android:layout_below="@id/handle"
+        android:scrollbars="none"
+        android:layout_marginTop="30dp">
 
-    <!-- Контейнер для доступных тренировок -->
-    <TextView
-        android:id="@+id/available_workouts_label"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Доступные тренировки для добавления:"
-        android:textSize="15sp"
-        android:textColor="#FFFFFF"
-        android:layout_marginStart="15dp"
-        android:layout_marginTop="20dp"
-        android:layout_below="@id/current_workouts_container" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="15dp"
+            android:paddingEnd="15dp">
 
-    <LinearLayout
-        android:id="@+id/available_workouts_container"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="15dp"
-        android:layout_marginEnd="50dp"
-        android:layout_marginTop="10dp"
-        android:orientation="vertical"
-        android:layout_below="@id/available_workouts_label" />
+            <!-- День недели -->
+            <TextView
+                android:id="@+id/day_of_week"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="День недели"
+                android:textSize="30sp"
+                android:textStyle="bold"
+                android:textColor="#FFFFFF" />
+
+            <!-- Дата (число и месяц) -->
+            <TextView
+                android:id="@+id/date_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="ХХ месяц"
+                android:textSize="15sp"
+                android:textColor="#FFFFFF"
+                android:layout_marginTop="10dp" />
+
+            <!-- Индикатор "Сегодня" (если применимо) -->
+            <TextView
+                android:id="@+id/today_indicator"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Сегодня"
+                android:textSize="15sp"
+                android:textColor="#FFFFFF"
+                android:layout_marginTop="10dp"
+                android:visibility="gone" />
+
+            <!-- Контейнер для списка тренировок -->
+            <LinearLayout
+                android:id="@+id/workouts_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:orientation="vertical" />
+
+        </LinearLayout>
+    </ScrollView>
+
     <View
         android:layout_width="match_parent"
         android:layout_height="match_parent" />

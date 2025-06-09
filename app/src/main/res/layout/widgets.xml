@@ -55,7 +55,7 @@
     <FrameLayout
         android:id="@+id/addtrenings"
         android:layout_width="match_parent"
-        android:layout_height="65dp"
+        android:layout_height="70dp"
         android:layout_marginTop="30dp"
         android:layout_below="@id/description"
         android:layout_marginStart="10dp"
@@ -107,7 +107,7 @@
     <FrameLayout
         android:id="@+id/personalTraining"
         android:layout_width="match_parent"
-        android:layout_height="65dp"
+        android:layout_height="70dp"
         android:layout_marginTop="0dp"
         android:layout_below="@id/addtrenings"
         android:layout_marginStart="10dp"
@@ -123,7 +123,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Интеллектуальная тренировка"
+            android:text="Персонализированная подборка"
             android:textSize="15sp"
             android:textColor="#FFFFFF"
             android:layout_marginStart="55dp"
@@ -132,7 +132,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Создавайте тренировку с ИИ"
+            android:text="Создавайте тренировку под себя"
             android:textSize="15sp"
             android:textColor="#ABACB5"
             android:layout_marginStart="55dp"
@@ -153,13 +153,19 @@
                 android:gravity="center"
                 android:layout_centerVertical="true"
                 android:layout_alignParentEnd="true" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_marginEnd="0dp"
+                android:layout_marginBottom="0dp" />
         </RelativeLayout>
     </FrameLayout>
 
     <FrameLayout
         android:id="@+id/bodyMetrics"
         android:layout_width="match_parent"
-        android:layout_height="65dp"
+        android:layout_height="70dp"
         android:layout_marginTop="0dp"
         android:layout_below="@id/personalTraining"
         android:layout_marginStart="10dp"
@@ -209,14 +215,14 @@
     </FrameLayout>
 
     <FrameLayout
-        android:id="@+id/folders"
+        android:id="@+id/add_folder_button"
         android:layout_width="match_parent"
-        android:layout_height="65dp"
+        android:layout_height="70dp"
         android:layout_marginTop="0dp"
         android:layout_below="@id/bodyMetrics"
         android:layout_marginStart="10dp"
-        android:onClick="message"
-        android:layout_marginEnd="15dp">
+        android:layout_marginEnd="15dp"
+        android:onClick="addFolder">
 
         <ImageView
             android:layout_width="50dp"
@@ -236,7 +242,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Отслеживайте изменения тела"
+            android:text="Группируйте элементы"
             android:textSize="15sp"
             android:textColor="#ABACB5"
             android:layout_marginStart="55dp"
@@ -259,7 +265,6 @@
                 android:layout_alignParentEnd="true" />
         </RelativeLayout>
     </FrameLayout>
-
     <View
         android:layout_width="match_parent"
         android:layout_height="match_parent" />

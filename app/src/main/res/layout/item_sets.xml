@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="70dp">
+
+    <RelativeLayout
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:layout_centerVertical="true">
+        <ImageView
+            android:id="@+id/warmup"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:visibility="gone"
+            android:background="@drawable/warmup"
+            android:layout_centerInParent="true"/>
+
+        <ImageView
+            android:id="@+id/checkbox"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/checkbox_selector"/>
+    </RelativeLayout>
+
+    <RelativeLayout
+        android:id="@+id/set_kg"
+        android:layout_width="80dp"
+        android:layout_height="40dp"
+        android:layout_centerVertical="true"
+        android:layout_marginStart="60dp"
+        android:background="@drawable/sets_et">
+        <EditText
+            android:id="@+id/edit_weight"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@null"
+            android:inputType="numberDecimal"
+            android:textSize="15sp"
+            android:paddingStart="20dp"
+            android:textColor="#FFFFFF"
+            android:hint="0"
+            android:textColorHint="#80FFFFFF"/>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="кг"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:layout_centerVertical="true"
+            android:layout_alignParentEnd="true"
+            android:layout_marginEnd="10dp"
+            android:textColor="#FFFFFF"/>
+    </RelativeLayout>
+
+    <RelativeLayout
+        android:id="@+id/set_reps"
+        android:layout_width="100dp"
+        android:layout_height="40dp"
+        android:layout_centerVertical="true"
+        android:layout_marginStart="150dp"
+        android:background="@drawable/sets_et">
+        <EditText
+            android:id="@+id/edit_reps"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@null"
+            android:inputType="number"
+            android:textSize="15sp"
+            android:paddingStart="25dp"
+            android:paddingEnd="40dp"
+            android:textColor="#FFFFFF"
+            android:hint="0"
+            android:textColorHint="#80FFFFFF"/>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="повт."
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:layout_centerVertical="true"
+            android:layout_alignParentEnd="true"
+            android:layout_marginEnd="10dp"
+            android:textColor="#FFFFFF"/>
+    </RelativeLayout>
+
+    <ImageView
+        android:id="@+id/add_button"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:background="@drawable/more"
+        android:layout_centerVertical="true"
+        android:layout_alignParentEnd="true" />
+
+</RelativeLayout>

@@ -1,50 +1,131 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/chat"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:id="@+id/chat"
     android:background="#0B0B0E"
-    android:fitsSystemWindows="false">
+    android:fitsSystemWindows="false"
+    android:fontFamily="sans-serif">
 
-    <TextView
-        android:id="@+id/title_home"
-        android:layout_width="wrap_content"
+    <!-- Fixed Header -->
+    <RelativeLayout
+        android:id="@+id/header_layout"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Чат"
-        android:textSize="40sp"
-        android:textStyle="bold"
-        android:textColor="#FFFFFF"
-        android:layout_marginStart="20dp"
-        android:layout_marginTop="60dp"
-        android:fontFamily="sans-serif"
-        android:layout_alignParentStart="true"/>
-    <FrameLayout
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:layout_alignParentEnd="true"
-        android:layout_marginEnd="20dp"
+        android:layout_alignParentTop="true"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
         android:layout_marginTop="70dp"
-        android:background="@drawable/background_btn"
-        android:onClick="message">
-        <ImageView
-            android:id="@+id/btn_plus"
-            android:layout_width="25dp"
-            android:layout_height="25dp"
-            android:layout_gravity="center"
-            android:src="@drawable/arrow" />
-    </FrameLayout>
+        android:background="#0B0B0E">
 
+        <TextView
+            android:id="@+id/title_home"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentStart="true"
+            android:fontFamily="sans-serif"
+            android:text="Чат"
+            android:textColor="#FFFFFF"
+            android:textSize="40sp"
+            android:textStyle="bold" />
+
+        <FrameLayout
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:background="@drawable/background_btn"
+            android:onClick="autorizations">
+
+            <ImageView
+                android:id="@+id/btn_plus"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:src="@drawable/login" />
+        </FrameLayout>
+
+        <FrameLayout
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:layout_marginEnd="50dp"
+            android:background="@drawable/background_btn"
+            android:onClick="about">
+
+            <ImageView
+                android:id="@+id/about"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:src="@drawable/about" />
+        </FrameLayout>
+
+        <ImageView
+            android:id="@+id/loading_gif"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:layout_centerInParent="true"
+            android:contentDescription="Загрузка"
+            android:background="@drawable/loading" />
+    </RelativeLayout>
+
+    <!-- RecyclerView for Chat -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recycler_view_chats"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_below="@id/header_layout"
+        android:layout_above="@id/message_input_layout"
+        android:clipToPadding="false"
+        android:paddingBottom="8dp" />
+
+    <!-- Message Input -->
+    <RelativeLayout
+        android:id="@+id/message_input_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_above="@id/bottom_navigation"
+        android:layout_marginBottom="5dp"
+        android:paddingHorizontal="16dp">
+
+        <EditText
+            android:id="@+id/message_input"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginEnd="48dp"
+            android:background="@drawable/enter_btn"
+            android:padding="12dp"
+            android:textColor="#FFFFFF"
+            android:hint="Введите сообщение"
+            android:textColorHint="#888888" />
+
+        <ImageView
+            android:id="@+id/send_button"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/send"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:contentDescription="Отправить сообщение" />
+    </RelativeLayout>
+
+    <!-- Bottom Navigation -->
     <FrameLayout
         android:id="@+id/bottom_navigation"
         android:layout_width="match_parent"
         android:layout_height="100dp"
         android:layout_alignParentBottom="true"
         android:background="#0B0B0E">
+
         <View
             android:layout_width="match_parent"
             android:layout_height="2dp"
-            android:background="#141418"
-            android:layout_gravity="top"/>
+            android:layout_gravity="top"
+            android:background="#141418" />
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
@@ -56,28 +137,28 @@
                 android:layout_width="32dp"
                 android:layout_height="32dp"
                 android:layout_weight="1"
-                android:src="@drawable/home_selector"/>
+                android:src="@drawable/home_selector" />
 
             <ImageView
                 android:id="@+id/nav_calendar"
                 android:layout_width="32dp"
                 android:layout_height="32dp"
                 android:layout_weight="1"
-                android:src="@drawable/calendar_selector"/>
+                android:src="@drawable/calendar_selector" />
 
             <ImageView
                 android:id="@+id/nav_statistics"
                 android:layout_width="32dp"
                 android:layout_height="32dp"
                 android:layout_weight="1"
-                android:src="@drawable/statistics_selector"/>
+                android:src="@drawable/statistics_selector" />
 
             <ImageView
                 android:id="@+id/nav_chat"
                 android:layout_width="32dp"
                 android:layout_height="32dp"
                 android:layout_weight="1"
-                android:src="@drawable/chat_selector"/>
+                android:src="@drawable/chat_selector" />
         </LinearLayout>
     </FrameLayout>
 </RelativeLayout>

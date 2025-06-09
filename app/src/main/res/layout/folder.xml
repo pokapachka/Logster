@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="180dp"
+    android:layout_marginBottom="10dp"
+    android:layout_marginStart="5dp"
+    android:layout_marginEnd="5dp"
+    android:fontFamily="sans-serif"
+    android:background="@drawable/folder_background">
+
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:src="@drawable/folder_item"
+        android:scaleType="centerCrop" />
+    <!-- Значение метрики (например, вес в кг) -->
+
+    <ImageView
+        android:layout_width="25dp"
+        android:layout_height="16dp"
+        android:layout_marginTop="20dp"
+        android:layout_marginStart="20dp"
+        android:background="@drawable/settingwidget"/>
+
+    <TextView
+        android:id="@+id/folder_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_marginBottom="40dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginEnd="10dp"
+        android:text="Название папки"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="#FFFFFF"
+        android:maxLines="1"
+        android:ellipsize="end"/>
+    <!-- Дата записи метрики -->
+    <TextView
+        android:id="@+id/items"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_marginBottom="20dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginEnd="10dp"
+        android:text="1 элемент"
+        android:textSize="15sp"
+        android:textColor="#ABACB5" />
+
+</RelativeLayout>

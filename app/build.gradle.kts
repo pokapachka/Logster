@@ -25,6 +25,7 @@ android {
             )
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
@@ -32,15 +33,29 @@ android {
 }
 
 dependencies {
-
+    // Стандартные Android библиотеки
     implementation(libs.appcompat)
     implementation(libs.material)
     implementation(libs.activity)
     implementation(libs.constraintlayout)
     implementation(libs.swiperefreshlayout)
     implementation(libs.flexbox)
+
+    // HTML парсинг
+    implementation(libs.jsoup)
+
+    // HTTP клиент и WebSocket
+    implementation(libs.okhttp)
+
+    // Загрузка изображений
+    implementation(libs.glide)
+    annotationProcessor(libs.glide.compiler)
+
+    // JSON обработка
+    implementation(libs.json)
+
+    // Тестирование
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
-
 }

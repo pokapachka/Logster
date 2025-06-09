@@ -27,7 +27,7 @@
                 android:textSize="40sp"
                 android:textStyle="bold"
                 android:layout_marginStart="20dp"
-                android:layout_marginTop="60dp"
+                android:layout_marginTop="65dp"
                 android:fontFamily="sans-serif"
                 android:layout_marginBottom="20dp"/>
 

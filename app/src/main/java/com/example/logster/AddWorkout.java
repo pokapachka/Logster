@@ -170,11 +170,6 @@ public class AddWorkout {
         centerArrow.setOnClickListener(v -> {
             if (selectedTextView != null && !selectedTextView.getText().toString().isEmpty()) {
                 String selectedWorkout = selectedTextView.getText().toString();
-                Toast.makeText(
-                        centerArrow.getContext(),
-                        "Вы выбрали тренировку: " + selectedWorkout,
-                        Toast.LENGTH_SHORT
-                ).show();
                 if (selectionListener != null) {
                     selectionListener.onWorkoutSelected(selectedWorkout.toLowerCase());
                 }

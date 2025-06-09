@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/self_message_container"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:fontFamily="sans-serif"
+    android:layout_marginBottom="8dp">
+
+    <!-- Контейнер сообщения -->
+    <FrameLayout
+        android:id="@+id/self_message_container_frame"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentEnd="true"
+        android:minWidth="100dp"
+        android:layout_marginStart="50dp"
+        android:layout_marginEnd="8dp"
+        android:background="@drawable/message2">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="10dp">
+
+            <!-- Основной текст сообщения (вверху) -->
+            <TextView
+                android:id="@+id/self_content"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#FFFFFF"
+                android:textSize="20sp" />
+
+            <!-- Контейнер для username и timestamp внизу -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="4dp"
+                android:gravity="end">
+
+                <!-- Имя пользователя (слева) -->
+                <TextView
+                    android:id="@+id/self_username"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="#ACADB7"
+                    android:textSize="15sp"
+                    android:textStyle="italic" />
+
+                <!-- Разделитель (·) -->
+                <TextView
+                    android:id="@+id/self_separator"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text=" · "
+                    android:textColor="#ACADB7"
+                    android:textSize="15sp"/>
+
+                <!-- Дата (справа, с отступом) -->
+                <TextView
+                    android:id="@+id/self_timestamp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="#ACADB7"
+                    android:textSize="15sp" />
+            </LinearLayout>
+        </LinearLayout>
+    </FrameLayout>
+</RelativeLayout>
