@@ -1,11 +1,13 @@
 package com.example.logster;
 
+import android.content.Context;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.ImageView;
 import androidx.annotation.NonNull;
@@ -90,6 +92,19 @@ public class SelectedSetsAdapter extends RecyclerView.Adapter<SelectedSetsAdapte
 
         holder.editWeight.addTextChangedListener(holder.weightWatcher);
         holder.editReps.addTextChangedListener(holder.repsWatcher);
+
+        // Show numeric keyboard on click
+        holder.editWeight.setOnClickListener(v -> {
+            holder.editWeight.requestFocus();
+            InputMethodManager imm = (InputMethodManager) mainActivity.getSystemService(Context.INPUT_METHOD_SERVICE);
+            imm.showSoftInput(holder.editWeight, InputMethodManager.SHOW_IMPLICIT);
+        });
+
+        holder.editReps.setOnClickListener(v -> {
+            holder.editReps.requestFocus();
+            InputMethodManager imm = (InputMethodManager) mainActivity.getSystemService(Context.INPUT_METHOD_SERVICE);
+            imm.showSoftInput(holder.editReps, InputMethodManager.SHOW_IMPLICIT);
+        });
 
         holder.removeButton.setOnClickListener(v -> {
             if (onSetRemoved != null && !isPlaceholder) {

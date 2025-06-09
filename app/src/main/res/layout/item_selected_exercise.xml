@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="60dp"
-    android:onClick="editExercises">
+    android:layout_height="60dp">
 
     <ImageView
         android:id="@+id/checkbox_selected"
@@ -37,7 +36,7 @@
         android:id="@+id/remove_button"
         android:layout_width="30dp"
         android:layout_height="30dp"
-        android:background="@drawable/delete2"
+        android:background="@drawable/delete3"
         android:layout_centerVertical="true"
         android:layout_alignParentEnd="true"
         android:layout_marginEnd="40dp"/>
