@@ -13,13 +13,18 @@ import java.util.List;
 
 public class ExercisesAdapter extends RecyclerView.Adapter<ExercisesAdapter.ExerciseViewHolder> {
     private List<Exercise> exercises;
-    private final ExerciseSelectionListener listener;
-    private final MainActivity activity;
+    private final OnExerciseClickListener listener;
+    private final MainActivity mainActivity;
 
-    public ExercisesAdapter(List<Exercise> exercises, ExerciseSelectionListener listener, MainActivity activity) {
-        this.exercises = exercises != null ? new ArrayList<>(exercises) : new ArrayList<>();
+    public interface OnExerciseClickListener {
+        void onExerciseClick(View view, Exercise exercise);
+    }
+
+    public ExercisesAdapter(List<Exercise> exercises, OnExerciseClickListener listener, MainActivity mainActivity) {
+        this.exercises = exercises != null ? exercises : new ArrayList<>();
         this.listener = listener;
-        this.activity = activity;
+        this.mainActivity = mainActivity;
+        Log.d("ExercisesAdapter", "Initialized with " + this.exercises.size() + " exercises");
     }
 
     @NonNull
@@ -32,7 +37,34 @@ public class ExercisesAdapter extends RecyclerView.Adapter<ExercisesAdapter.Exer
     @Override
     public void onBindViewHolder(@NonNull ExerciseViewHolder holder, int position) {
         Exercise exercise = exercises.get(position);
-        holder.bind(exercise);
+        holder.exerciseName.setText(exercise.getName());
+        holder.checkbox.setSelected(exercise.isSelected());
+
+        // Обработка клика по чекбоксу (выбор/снятие выбора упражнения)
+        holder.checkbox.setOnClickListener(v -> {
+            if (listener != null) {
+                listener.onExerciseClick(v, exercise);
+                Log.d("ExercisesAdapter", "Checkbox clicked for exercise: " + exercise.getName());
+            }
+        });
+
+        // Обработка клика по всему элементу (открытие описания)
+        holder.itemView.setOnClickListener(v -> {
+            if (v.getId() != R.id.checkbox && v.getId() != R.id.add_button) {
+                mainActivity.openExerciseDescription(exercise);
+                Log.d("ExercisesAdapter", "ItemView clicked, opening description for: " + exercise.getName());
+            }
+        });
+
+        // Обработка клика по кнопке добавления
+        holder.addButton.setOnClickListener(v -> {
+            if (listener != null) {
+                listener.onExerciseClick(v, exercise);
+                Log.d("ExercisesAdapter", "Add button clicked for exercise: " + exercise.getName());
+            }
+        });
+
+        Log.d("ExercisesAdapter", "Bound exercise: " + exercise.getName() + ", selected: " + exercise.isSelected());
     }
 
     @Override
@@ -40,19 +72,27 @@ public class ExercisesAdapter extends RecyclerView.Adapter<ExercisesAdapter.Exer
         return exercises.size();
     }
 
+    public void updateExercises(List<Exercise> newExercises) {
+        this.exercises = new ArrayList<>(newExercises);
+        notifyDataSetChanged();
+        Log.d("ExercisesAdapter", "Exercises updated, new size: " + exercises.size());
+    }
+
     public static class Exercise {
         private final int id;
         private final String name;
-        private boolean isSelected;
+        private final List<String> tags;
+        private final String description;
+        private boolean selected;
         private final List<Set> sets;
-        private final List<String> muscleGroups; // Новое поле для групп мышц
 
-        public Exercise(int id, String name, List<String> muscleGroups) {
+        public Exercise(int id, String name, List<String> tags, String description) {
             this.id = id;
             this.name = name;
-            this.isSelected = false;
+            this.tags = tags != null ? new ArrayList<>(tags) : new ArrayList<>();
+            this.description = description;
+            this.selected = false;
             this.sets = new ArrayList<>();
-            this.muscleGroups = muscleGroups != null ? new ArrayList<>(muscleGroups) : new ArrayList<>();
         }
 
         public int getId() {
@@ -63,12 +103,20 @@ public class ExercisesAdapter extends RecyclerView.Adapter<ExercisesAdapter.Exer
             return name;
         }
 
+        public List<String> getTags() {
+            return new ArrayList<>(tags);
+        }
+
+        public String getDescription() {
+            return description;
+        }
+
         public boolean isSelected() {
-            return isSelected;
+            return selected;
         }
 
         public void setSelected(boolean selected) {
-            isSelected = selected;
+            this.selected = selected;
         }
 
         public List<Set> getSets() {
@@ -82,44 +130,18 @@ public class ExercisesAdapter extends RecyclerView.Adapter<ExercisesAdapter.Exer
         public void removeSet(Set set) {
             sets.remove(set);
         }
-
-        public List<String> getMuscleGroups() {
-            return new ArrayList<>(muscleGroups);
-        }
     }
 
-    class ExerciseViewHolder extends RecyclerView.ViewHolder {
+    static class ExerciseViewHolder extends RecyclerView.ViewHolder {
         TextView exerciseName;
-        ImageView checkBox;
+        ImageView checkbox;
+        ImageView addButton;
 
         ExerciseViewHolder(@NonNull View itemView) {
             super(itemView);
             exerciseName = itemView.findViewById(R.id.exercise_name);
-            checkBox = itemView.findViewById(R.id.checkbox);
-            if (checkBox == null || exerciseName == null) {
-                Log.w("ExercisesAdapter", "checkBox or exerciseName not found in item_exercise");
-            }
-        }
-
-        void bind(Exercise exercise) {
-            if (exerciseName != null) {
-                exerciseName.setText(exercise.getName());
-            }
-            if (checkBox != null) {
-                checkBox.setSelected(exercise.isSelected());
-            }
-            itemView.setOnClickListener(v -> {
-                if (listener != null) {
-                    listener.onExerciseSelected(v, exercise);
-                }
-            });
-            if (checkBox != null) {
-                checkBox.setOnClickListener(v -> {
-                    if (listener != null) {
-                        listener.onExerciseSelected(v, exercise);
-                    }
-                });
-            }
+            checkbox = itemView.findViewById(R.id.checkbox);
+            addButton = itemView.findViewById(R.id.add_button);
         }
     }
 }

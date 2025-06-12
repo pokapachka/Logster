@@ -2,7 +2,6 @@ package com.example.logster;
 
 import android.animation.ValueAnimator;
 import android.app.Activity;
-import android.content.Context;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
@@ -10,8 +9,12 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
-import android.view.inputmethod.InputMethodManager;
 import android.widget.FrameLayout;
+import android.widget.TextView;
+
+import com.google.android.flexbox.FlexboxLayout;
+
+import java.util.List;
 
 public class BottomSheets {
     private static final String TAG = "BottomSheets";
@@ -37,7 +40,7 @@ public class BottomSheets {
             return;
         }
         params = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        initialTopMargin = dpToPx(activity, 70);
+        initialTopMargin = dpToPx(activity, 80);
         params.topMargin = initialTopMargin;
         isShowing = false;
     }
@@ -50,8 +53,51 @@ public class BottomSheets {
         sheetView = view;
         if (sheetView != null) {
             sheetView.setLayoutParams(params);
+            // Заполняем экран описания, если это exercise_description
+            if (sheetView.getId() == R.id.exerciseDescriprion && activity instanceof MainActivity) {
+                populateExerciseDescription();
+                Log.d(TAG, "Populated exercise description in setContentView");
+            }
         } else {
             Log.e(TAG, "setContentView: view is null");
+        }
+    }
+
+    private void populateExerciseDescription() {
+        if (!(activity instanceof MainActivity)) {
+            Log.e(TAG, "Activity is not MainActivity, cannot populate exercise description");
+            return;
+        }
+        MainActivity mainActivity = (MainActivity) activity;
+        // Ищем упражнение по имени из switchSheet data
+        ExercisesAdapter.Exercise exercise = ExerciseList.getAllExercises().stream()
+                .filter(e -> e.getName().equals(mainActivity.getCurrentExerciseName()))
+                .findFirst()
+                .orElse(null);
+        if (exercise != null) {
+            TextView title = sheetView.findViewById(R.id.titleExercises);
+            TextView description = sheetView.findViewById(R.id.description);
+            FlexboxLayout tagsContainer = sheetView.findViewById(R.id.tags_container);
+
+            if (title != null) {
+                title.setText(exercise.getName());
+            }
+            if (description != null) {
+                description.setText(exercise.getDescription());
+            }
+            if (tagsContainer != null) {
+                tagsContainer.removeAllViews();
+                List<String> tags = exercise.getTags();
+                for (String tag : tags) {
+                    TextView tagView = (TextView) LayoutInflater.from(activity)
+                            .inflate(R.layout.item_tag, tagsContainer, false);
+                    tagView.setText(tag);
+                    tagsContainer.addView(tagView);
+                }
+            }
+            Log.d(TAG, "Populated exercise description for: " + exercise.getName());
+        } else {
+            Log.w(TAG, "No exercise found for description with name: " + mainActivity.getCurrentExerciseName());
         }
     }
 
@@ -84,44 +130,6 @@ public class BottomSheets {
         });
         animator.start();
         setSwipeListener();
-        isShowing = true;
-        View close = sheetView.findViewById(R.id.close);
-        if (close != null) {
-            close.setOnClickListener(v -> hide(null));
-        }
-    }
-
-    public void showWithLimitedHeight() {
-        if (sheetView == null || rootLayout == null) {
-            Log.e(TAG, "showWithLimitedHeight: sheetView or rootLayout is null");
-            return;
-        }
-        screenHeight = rootLayout.getHeight();
-        if (screenHeight == 0) {
-            screenHeight = activity.getResources().getDisplayMetrics().heightPixels;
-        }
-        int limitedHeight = dpToPx(activity, 250);
-        int limitedTopMargin = screenHeight - limitedHeight;
-        params.topMargin = screenHeight;
-        sheetView.setLayoutParams(params);
-        sheetView.post(() -> {
-            sheetView.setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, limitedHeight));
-        });
-        if (sheetView.getParent() == null) {
-            rootLayout.addView(sheetView);
-            Log.d(TAG, "Added sheetView to rootLayout (limited height)");
-        }
-        sheetView.setVisibility(View.VISIBLE);
-        sheetView.bringToFront();
-        ValueAnimator animator = ValueAnimator.ofInt(screenHeight, limitedTopMargin);
-        animator.setDuration(300);
-        animator.addUpdateListener(animation -> {
-            params.topMargin = (int) animation.getAnimatedValue();
-            sheetView.setLayoutParams(params);
-        });
-        animator.start();
-        setSwipeListener();
-        initialTopMargin = limitedTopMargin;
         isShowing = true;
         View close = sheetView.findViewById(R.id.close);
         if (close != null) {
@@ -209,7 +217,7 @@ public class BottomSheets {
             return;
         }
         ValueAnimator animator = ValueAnimator.ofInt(params.topMargin, screenHeight);
-        animator.setDuration(200);
+        animator.setDuration(300);
         animator.addUpdateListener(animation -> {
             params.topMargin = (int) animation.getAnimatedValue();
             sheetView.setLayoutParams(params);
@@ -242,7 +250,7 @@ public class BottomSheets {
         sheetView.setOnTouchListener(new View.OnTouchListener() {
             float downY = 0;
             float totalDeltaY = 0;
-            long startTime = 0;
+            long startTime;
 
             @Override
             public boolean onTouch(View v, MotionEvent event) {
@@ -340,6 +348,11 @@ public class BottomSheets {
                         onComplete.run();
                     }
                     isShowing = true;
+                    // Заполняем данные, если новый экран — exercise_description
+                    if (sheetView.getId() == R.id.exerciseDescriprion && activity instanceof MainActivity) {
+                        populateExerciseDescription();
+                        Log.d(TAG, "Populated exercise description after horizontal transition");
+                    }
                 }
             }
 
@@ -356,43 +369,35 @@ public class BottomSheets {
     public View getContentView() {
         return sheetView;
     }
+
     public void switchSheet(int layoutId, String data, boolean useHorizontalTransition, int exitAnim, int enterAnim) {
-        ((ChatActivity) activity).hideKeyboard();
+        if (activity instanceof MainActivity) {
+            ((MainActivity) activity).hideKeyboard();
+            // Сохраняем имя упражнения для populateExerciseDescription
+            ((MainActivity) activity).setCurrentExerciseName(data);
+        }
         View newView = LayoutInflater.from(activity).inflate(layoutId, null);
+
+        // Устанавливаем слушатель для кнопки закрытия
         View close = newView.findViewById(R.id.close);
         if (close != null) {
-            close.setOnClickListener(v -> hide(null));
+            close.setOnClickListener(v -> {
+                if (layoutId == R.layout.exercises_description && activity instanceof MainActivity) {
+                    ((MainActivity) activity).backSheetExerciseDescription(v);
+                } else {
+                    hide(null);
+                }
+            });
         }
 
-        if (layoutId == R.layout.autorization) {
-            Authorization auth = new Authorization(activity);
-            if (useHorizontalTransition && exitAnim != 0 && enterAnim != 0) {
-                showWithHorizontalTransition(exitAnim, enterAnim, newView, () -> auth.show());
-            } else {
-                setContentView(newView);
-                auth.show();
-            }
-        } else if (layoutId == R.layout.registration) {
-            Registration reg = new Registration(activity);
-            if (useHorizontalTransition && exitAnim != 0 && enterAnim != 0) {
-                showWithHorizontalTransition(exitAnim, enterAnim, newView, () -> reg.show());
-            } else {
-                setContentView(newView);
-                reg.show();
-            }
-        } else if (layoutId == R.layout.profile || layoutId == R.layout.profile_tag || layoutId == R.layout.profile_bio || layoutId == R.layout.profile_image) {
-            Profile profile = new Profile(activity, this);
-            View back = newView.findViewById(R.id.back);
-            if (back != null) {
-                back.setOnClickListener(v -> switchSheet(R.layout.profile, null, true, R.anim.slide_out_right, R.anim.slide_in_left));
-            }
-            if (useHorizontalTransition && exitAnim != 0 && enterAnim != 0) {
-                showWithHorizontalTransition(exitAnim, enterAnim, newView, () -> profile.setupProfileSheet(layoutId, data));
-            } else {
-                setContentView(newView);
-                show();
-                profile.setupProfileSheet(layoutId, data);
-            }
+        if (layoutId == R.layout.exercises_description && activity instanceof MainActivity) {
+            // Ничего дополнительного не требуется, populateExerciseDescription вызывается в setContentView
+        } else if (layoutId == R.layout.add_exercises) {
+            // Можно добавить дополнительную инициализацию, если требуется
+        }
+
+        if (useHorizontalTransition && exitAnim != 0 && enterAnim != 0) {
+            showWithHorizontalTransition(exitAnim, enterAnim, newView, null);
         } else {
             setContentView(newView);
             show();

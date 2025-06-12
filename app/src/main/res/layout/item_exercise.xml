@@ -1,14 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/exercise_item_layout"
     android:layout_width="match_parent"
-    android:layout_height="70dp">
+    android:layout_height="70dp"
+    android:clickable="true"
+    android:focusable="true"
+    android:background="?android:attr/selectableItemBackground">
 
     <ImageView
         android:id="@+id/checkbox"
         android:layout_width="50dp"
         android:layout_height="50dp"
         android:background="@drawable/checkbox_selector"
-        android:layout_centerVertical="true" />
+        android:layout_centerVertical="true"
+        android:clickable="true"
+        android:focusable="true"
+        android:contentDescription="Select exercise" />
 
     <TextView
         android:id="@+id/exercise_name"
@@ -19,7 +26,9 @@
         android:textStyle="bold"
         android:textColor="#FFFFFF"
         android:layout_marginStart="60dp"
-        android:layout_centerVertical="true" />
+        android:layout_centerVertical="true"
+        android:clickable="false"
+        android:focusable="false" />
 
     <ImageView
         android:id="@+id/add_button"
@@ -27,6 +36,9 @@
         android:layout_height="20dp"
         android:background="@drawable/add_ex"
         android:layout_centerVertical="true"
-        android:layout_alignParentEnd="true" />
+        android:layout_alignParentEnd="true"
+        android:clickable="true"
+        android:focusable="true"
+        android:contentDescription="Add exercise" />
 
 </RelativeLayout>
