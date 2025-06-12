@@ -140,6 +140,9 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
             @Override
             public void onExerciseRemoved(ExercisesAdapter.Exercise exercise) {
                 selectedExercises.remove(exercise);
+                // Очищаем сеты упражнения и сбрасываем состояние выбора
+                exercise.getSets().clear();
+                exercise.setSelected(false);
                 selectedExercisesAdapter.updateExercises(new ArrayList<>(selectedExercises));
                 Workout workout = workouts.stream()
                         .filter(w -> w.name.equals(selectedWorkoutName))
@@ -147,10 +150,10 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
                         .orElse(null);
                 if (workout != null) {
                     workout.exerciseIds.remove(Integer.valueOf(exercise.getId()));
-                    // НЕ удаляем workout.exerciseSets, чтобы сохранить сеты для возможного восстановления
+                    // Удаляем сеты упражнения из workout.exerciseSets
+                    workout.exerciseSets.remove(exercise.getId());
                     saveWorkouts();
-                    Log.d("MainActivity", "Упражнение удалено: " + exercise.getName() + ", id=" + exercise.getId() +
-                            ", оставлено " + workout.exerciseSets.getOrDefault(exercise.getId(), new ArrayList<>()).size() + " подходов в workout.exerciseSets");
+                    Log.d("MainActivity", "Упражнение удалено: " + exercise.getName() + ", id=" + exercise.getId() + ", сеты очищены");
                 } else {
                     Log.w("MainActivity", "Тренировка не найдена: " + selectedWorkoutName);
                 }
@@ -1689,19 +1692,6 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
         } else {
             Log.w("MainActivity", "Упражнение не найдено для подхода: " + set.getId());
         }
-    }
-    private void onExerciseRemoved(ExercisesAdapter.Exercise exercise) {
-        selectedExercises.remove(exercise);
-        selectedExercisesAdapter.updateExercises(selectedExercises);
-        Workout workout = workouts.stream()
-                .filter(w -> w.name.equals(selectedWorkoutName))
-                .findFirst()
-                .orElse(null);
-        if (workout != null) {
-            workout.exerciseIds.remove(exercise.getId());
-            saveWorkouts();
-        }
-        Log.d("MainActivity", "Exercise removed: " + exercise.getName());
     }
     public void backSheetEditExercises(View view) {
         switchSheet(

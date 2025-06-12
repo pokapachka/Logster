@@ -70,12 +70,16 @@ public class AddExercises implements ExercisesAdapter.OnExerciseClickListener {
             if (selectedExercises != null) {
                 if (exercise.isSelected()) {
                     if (!selectedExercises.contains(exercise)) {
+                        // Сбрасываем сеты при добавлении упражнения
+                        exercise.getSets().clear();
                         selectedExercises.add(exercise);
-                        Log.d("AddExercises", "Добавлено упражнение: " + exercise.getName() + ", всего выбрано: " + selectedExercises.size());
+                        Log.d("AddExercises", "Добавлено упражнение: " + exercise.getName() + ", всего выбрано: " + selectedExercises.size() + ", сеты сброшены");
                     }
                 } else {
                     selectedExercises.remove(exercise);
-                    Log.d("AddExercises", "Удалено упражнение: " + exercise.getName() + ", всего выбрано: " + selectedExercises.size());
+                    // Очищаем сеты при снятии выбора
+                    exercise.getSets().clear();
+                    Log.d("AddExercises", "Удалено упражнение: " + exercise.getName() + ", всего выбрано: " + selectedExercises.size() + ", сеты очищены");
                 }
                 mainActivity.onExercisesSelected(new ArrayList<>(selectedExercises)); // Копируем список
                 updateAddButtonState();
