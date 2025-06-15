@@ -46,7 +46,7 @@ dependencies {
 
     // HTTP клиент и WebSocket
     implementation(libs.okhttp)
-
+    implementation(libs.okhttp.logging)
     // Загрузка изображений
     implementation(libs.glide)
     annotationProcessor(libs.glide.compiler)

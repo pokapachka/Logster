@@ -4,7 +4,9 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/rounded_top"
-    android:fontFamily="sans-serif">
+    android:fontFamily="sans-serif"
+    android:clipChildren="false"
+    android:clipToPadding="false">
 
     <!-- Ручка сверху -->
     <View
@@ -12,7 +14,7 @@
         android:layout_height="4dp"
         android:layout_centerHorizontal="true"
         android:layout_marginTop="5dp"
-        android:background="@drawable/handle_background" />
+        android:background="@drawable/handle_background"/>
 
     <!-- Кнопка назад -->
     <FrameLayout
@@ -62,7 +64,9 @@
         android:layout_height="match_parent"
         android:layout_below="@id/description"
         android:layout_marginTop="0dp"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:clipChildren="false"
+        android:clipToPadding="false">
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/sets_list"
@@ -71,14 +75,17 @@
             android:layout_marginStart="10dp"
             android:layout_marginEnd="15dp"
             android:scrollbars="vertical"
-            android:visibility="gone" />
+            android:visibility="gone"
+            android:clipToPadding="false"
+            android:clipChildren="false" />
 
         <FrameLayout
             android:id="@+id/add_set"
             android:layout_width="match_parent"
             android:layout_height="70dp"
             android:layout_marginStart="10dp"
-            android:layout_marginEnd="15dp">
+            android:layout_marginEnd="15dp"
+            android:layout_marginTop="10dp">
             <RelativeLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent">

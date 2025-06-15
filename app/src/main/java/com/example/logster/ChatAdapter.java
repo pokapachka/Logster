@@ -85,6 +85,7 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                         .load(message.user_image)
                         .placeholder(R.drawable.default_profile)
                         .error(R.drawable.default_profile)
+                        .circleCrop() // Круглая обрезка
                         .into(otherHolder.userImage);
             } else {
                 otherHolder.userImage.setImageResource(R.drawable.default_profile);
@@ -94,20 +95,17 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     private String formatTimestamp(String createdAt) {
         try {
-            // Проверка, если строка пустая или null
             if (createdAt == null || createdAt.isEmpty()) {
                 Log.e("ChatAdapter", "Пустая или null строка времени");
                 return "Неизвестное время";
             }
 
-            // Парсинг входной даты с поддержкой микросекунд
             SimpleDateFormat inputFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSSXXX", Locale.getDefault());
-            inputFormat.setTimeZone(TimeZone.getTimeZone("UTC")); // Входное время в UTC
+            inputFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
             Date messageDate;
             try {
                 messageDate = inputFormat.parse(createdAt);
             } catch (Exception e) {
-                // Попытка альтернативного формата без микросекунд
                 inputFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.getDefault());
                 inputFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
                 messageDate = inputFormat.parse(createdAt);
@@ -118,11 +116,9 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 return "Неизвестное время";
             }
 
-            // Текущее время в часовом поясе Екатеринбурга
             SimpleDateFormat outputTimeFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
             outputTimeFormat.setTimeZone(TimeZone.getTimeZone("Asia/Yekaterinburg"));
 
-            // Текущая дата и время
             Date now = new Date();
             long diffInMillis = now.getTime() - messageDate.getTime();
             long diffInSeconds = diffInMillis / 1000;
@@ -130,41 +126,31 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             long diffInHours = diffInMinutes / 60;
             long diffInDays = diffInHours / 24;
 
-            // Форматирование времени в Екатеринбурге
             String formattedTime = outputTimeFormat.format(messageDate);
 
-            // Логика отображения
             if (diffInDays < 1 && isSameDay(now, messageDate)) {
-                // Сегодня — показываем только время
                 Log.d("ChatAdapter", "Форматировано время (сегодня): " + createdAt + " -> " + formattedTime);
                 return formattedTime;
             } else if (diffInDays == 1) {
-                // Вчера — показываем "вчера" и время
                 Log.d("ChatAdapter", "Форматировано время (вчера): " + createdAt + " -> вчера " + formattedTime);
                 return "вчера " + formattedTime;
             } else if (diffInDays == 2) {
-                // Позавчера — показываем "позавчера" и время
                 Log.d("ChatAdapter", "Форматировано время (позавчера): " + createdAt + " -> позавчера " + formattedTime);
                 return "позавчера " + formattedTime;
             } else if (diffInDays >= 3 && diffInDays <= 6) {
-                // 3–6 дней назад — показываем "X дней назад" и время
                 String daysText = getDaysText(diffInDays);
                 Log.d("ChatAdapter", "Форматировано время (дни назад): " + createdAt + " -> " + daysText + " " + formattedTime);
                 return daysText + " " + formattedTime;
             } else if (diffInDays >= 7 && diffInDays < 14) {
-                // Неделю назад
                 Log.d("ChatAdapter", "Форматировано время (неделя назад): " + createdAt + " -> неделю назад");
                 return "неделю назад";
             } else if (diffInDays >= 14 && diffInDays < 21) {
-                // Две недели назад
                 Log.d("ChatAdapter", "Форматировано время (две недели назад): " + createdAt + " -> две недели назад");
                 return "две недели назад";
             } else if (diffInDays >= 21 && diffInDays < 30) {
-                // Три недели назад
                 Log.d("ChatAdapter", "Форматировано время (три недели назад): " + createdAt + " -> три недели назад");
                 return "три недели назад";
             } else {
-                // Месяц назад
                 Log.d("ChatAdapter", "Форматировано время (месяц назад): " + createdAt + " -> месяц назад");
                 return "месяц назад";
             }
@@ -174,14 +160,12 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         }
     }
 
-    // Вспомогательный метод для проверки, является ли дата сегодняшним днём
     private boolean isSameDay(Date date1, Date date2) {
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd", Locale.getDefault());
         dateFormat.setTimeZone(TimeZone.getTimeZone("Asia/Yekaterinburg"));
         return dateFormat.format(date1).equals(dateFormat.format(date2));
     }
 
-    // Метод для правильного склонения слова "день"
     private String getDaysText(long days) {
         if (days == 3) {
             return "3 дня назад";

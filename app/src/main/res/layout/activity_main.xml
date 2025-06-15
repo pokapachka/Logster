@@ -9,16 +9,33 @@
     android:fitsSystemWindows="false"
     tools:context=".MainActivity">
 
+    <TextView
+        android:id="@+id/overlay_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Logster"
+        android:textSize="40sp"
+        android:textStyle="bold"
+        android:textColor="#FFFFFF"
+        android:fontFamily="sans-serif"
+        android:layout_marginTop="65dp"
+        android:paddingStart="20dp"
+        android:visibility="gone"/>
+
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:fillViewport="true">
+        android:fillViewport="true"
+        android:clipChildren="false"
+        android:clipToPadding="false">
 
         <LinearLayout
             android:orientation="vertical"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center_horizontal">
+            android:gravity="center_horizontal"
+            android:clipChildren="false"
+            android:clipToPadding="false">
 
             <!-- Шапка -->
             <RelativeLayout
@@ -37,25 +54,6 @@
                     android:textStyle="bold"
                     android:textColor="#FFFFFF"
                     android:fontFamily="sans-serif" />
-
-                <FrameLayout
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:layout_marginEnd="50dp"
-                    android:background="@drawable/background_btn"
-                    android:layout_marginTop="10dp"
-                    android:layout_alignParentEnd="true"
-                    android:layout_centerVertical="true"
-                    android:layout_alignEnd="@+id/plus"
-                    android:layout_gravity="end">
-
-                    <ImageView
-                        android:id="@+id/btn_settings"
-                        android:layout_width="30dp"
-                        android:layout_height="21dp"
-                        android:layout_gravity="center"
-                        android:src="@drawable/settingss" />
-                </FrameLayout>
 
                 <FrameLayout
                     android:id="@+id/plus"
@@ -106,7 +104,9 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:paddingTop="20dp"
-                android:layout_marginBottom="100dp" />
+                android:layout_marginBottom="100dp"
+                android:clipChildren="false"
+                android:clipToPadding="false" />
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>

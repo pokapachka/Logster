@@ -5,11 +5,15 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 import android.view.View;
+import android.view.WindowInsets;
+import android.view.WindowInsetsController;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -56,11 +60,13 @@ public class ChatActivity extends AppCompatActivity {
         initializeUI();
         loadProfileData();
         loadMessages();
-        scrollToBottom(); // Прокрутка при открытии активности
+        scrollToBottom();
     }
 
     public void initializeUI() {
         setContentView(R.layout.chat);
+        navManager = new BottomNavigationManager(findViewById(R.id.bottom_navigation), this);
+        navManager.setCurrentActivity("ChatActivity");
 
         recyclerView = findViewById(R.id.recycler_view_chats);
         LinearLayoutManager layoutManager = new LinearLayoutManager(this);
@@ -76,8 +82,14 @@ public class ChatActivity extends AppCompatActivity {
                 .into(loadingSpinner);
         loadingSpinner.setVisibility(View.GONE);
 
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_MEDIA_IMAGES}, STORAGE_PERMISSION_CODE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_MEDIA_IMAGES}, STORAGE_PERMISSION_CODE);
+            }
+        } else {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, STORAGE_PERMISSION_CODE);
+            }
         }
 
         setupNavigationAndSend();
@@ -99,11 +111,35 @@ public class ChatActivity extends AppCompatActivity {
         profileTag = prefs.getString("tag", "@user");
         profileBio = prefs.getString("bio", "");
         profileImageUrl = prefs.getString("image_url", null);
+        // Обновляем UI с локальными данными сразу
+        updateProfileUI();
         if (RegisterContext.isLoggedIn(this)) {
-            fetchProfileData();
+            fetchProfileData(); // Синхронизируем с сервером
         } else {
             resetProfileData();
         }
+    }
+
+    private void updateProfileUI() {
+        // Обновляем UI (например, BottomNavigationManager или Profile)
+        navManager.setCurrentActivity("ChatActivity");
+        chatAdapter.updateCurrentUser();
+        // Обновляем BottomSheet, если открыт
+        if (bottomSheet.isShowing()) {
+            View sheetView = bottomSheet.getContentView();
+            if (sheetView != null) {
+                ImageView profileImage = sheetView.findViewById(R.id.image_profile);
+                if (profileImage != null && profileImageUrl != null) {
+                    Glide.with(this)
+                            .load(profileImageUrl)
+                            .placeholder(R.drawable.default_profile)
+                            .error(R.drawable.default_profile)
+                            .circleCrop()
+                            .into(profileImage);
+                }
+            }
+        }
+        Log.d(TAG, "UI профиля обновлено с локальными данными: username=" + profileUsername);
     }
 
     public void fetchProfileData() {
@@ -115,6 +151,7 @@ public class ChatActivity extends AppCompatActivity {
                     profileTag = profileData.username != null ? "@" + profileData.username : "@user";
                     profileBio = profileData.bio != null ? profileData.bio : "";
                     profileImageUrl = profileData.imageUrl;
+                    // Сохраняем в SharedPreferences
                     SharedPreferences prefs = getSharedPreferences("auth_prefs", MODE_PRIVATE);
                     prefs.edit()
                             .putString("username", profileUsername)
@@ -122,9 +159,10 @@ public class ChatActivity extends AppCompatActivity {
                             .putString("bio", profileBio)
                             .putString("image_url", profileImageUrl)
                             .apply();
-                    chatAdapter.updateCurrentUser();
+                    updateProfileUI();
                     loadMessages();
-                    scrollToBottom(); // Прокрутка при входе в аккаунт
+                    scrollToBottom();
+                    Log.d(TAG, "Профиль синхронизирован с сервером");
                 });
             }
 
@@ -141,16 +179,12 @@ public class ChatActivity extends AppCompatActivity {
         profileBio = "";
         profileImageUrl = null;
         SharedPreferences prefs = getSharedPreferences("auth_prefs", MODE_PRIVATE);
-        prefs.edit()
-                .remove("username")
-                .remove("tag")
-                .remove("bio")
-                .remove("image_url")
-                .remove("user_id")
-                .apply();
-        chatAdapter.clear(); // Теперь работает благодаря методу clear() в ChatAdapter
+        prefs.edit().clear().apply(); // Очищаем все данные
+        chatAdapter.clear();
         messageIds.clear();
-        scrollToBottom(); // Прокрутка при выходе из аккаунта
+        updateProfileUI();
+        scrollToBottom();
+        Log.d(TAG, "Локальные данные профиля сброшены");
     }
 
     public void loadMessages() {
@@ -267,41 +301,29 @@ public class ChatActivity extends AppCompatActivity {
             return;
         }
 
-        // Получаем данные пользователя
         SharedPreferences prefs = getSharedPreferences("auth_prefs", MODE_PRIVATE);
         String userId = prefs.getString("user_id", null);
         String username = prefs.getString("username", "User");
         String userImage = prefs.getString("image_url", null);
 
-        // Создаём временное сообщение
-        String tempId = "temp_" + System.currentTimeMillis(); // Временный уникальный ID
+        String tempId = "temp_" + System.currentTimeMillis();
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSSXXX", Locale.getDefault());
         sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
         String currentTime = sdf.format(new Date());
         RegisterContext.Message tempMessage = new RegisterContext.Message(
-                tempId,
-                userId,
-                username,
-                content,
-                currentTime,
-                userImage
+                tempId, userId, username, content, currentTime, userImage
         );
 
-        // Добавляем временное сообщение в адаптер
         chatAdapter.addMessage(tempMessage);
-        messageIds.add(tempId); // Добавляем временный ID в messageIds
-        scrollToBottom(); // Прокручиваем вниз
-        messageInput.setText(""); // Очищаем поле ввода
-        hideKeyboard(); // Скрываем клавиатуру
+        messageIds.add(tempId);
+        scrollToBottom();
+        messageInput.setText("");
+        hideKeyboard();
 
-        // Отправляем сообщение на сервер
         RegisterContext.sendMessage(this, content, new RegisterContext.Callback<Void>() {
             @Override
             public void onSuccess(Void result) {
-                runOnUiThread(() -> {
-                    Toast.makeText(ChatActivity.this, "Сообщение отправлено", Toast.LENGTH_SHORT).show();
-                    Log.d(TAG, "Сообщение успешно отправлено на сервер: " + content);
-                });
+                runOnUiThread(() -> Log.d(TAG, "Сообщение отправлено на сервер: " + content));
             }
 
             @Override
@@ -338,6 +360,25 @@ public class ChatActivity extends AppCompatActivity {
     }
 
     private void hideSystemUI() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            getWindow().getInsetsController().hide(WindowInsets.Type.systemBars());
+            getWindow().getInsetsController().setSystemBarsBehavior(
+                    WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            );
+        } else {
+            getWindow().getDecorView().setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                            | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_FULLSCREEN
+            );
+        }
+    }
+
+    public void message(View view) {
+        Toast.makeText(this, "Нажатие обработано", Toast.LENGTH_SHORT).show();
         getWindow().getDecorView().setSystemUiVisibility(
                 View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                         | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
@@ -375,40 +416,32 @@ public class ChatActivity extends AppCompatActivity {
         profileTag = tag;
         SharedPreferences prefs = getSharedPreferences("auth_prefs", MODE_PRIVATE);
         prefs.edit().putString("tag", tag).apply();
-        RegisterContext.updateProfile(this, tag, null, null, new RegisterContext.Callback<Void>() {
-            @Override
-            public void onSuccess(Void result) {
-                Toast.makeText(ChatActivity.this, "Тег обновлен", Toast.LENGTH_SHORT).show();
-            }
-
-            @Override
-            public void onError(String error) {
-                Toast.makeText(ChatActivity.this, "Ошибка обновления тега: " + error, Toast.LENGTH_SHORT).show();
-            }
-        });
+        // Обновляем UI
+        updateProfileUI();
+        // Отправляем в БД в фоне
+        RegisterContext.updateProfileAsync(this, tag, null, null);
+        Toast.makeText(this, "Тег обновлен", Toast.LENGTH_SHORT).show();
+        Log.d(TAG, "Локальный тег обновлен: " + tag);
     }
 
     public void updateProfileBio(String bio) {
         profileBio = bio;
         SharedPreferences prefs = getSharedPreferences("auth_prefs", MODE_PRIVATE);
         prefs.edit().putString("bio", bio).apply();
-        RegisterContext.updateProfile(this, null, bio, null, new RegisterContext.Callback<Void>() {
-            @Override
-            public void onSuccess(Void result) {
-                Toast.makeText(ChatActivity.this, "Био обновлено", Toast.LENGTH_SHORT).show();
-            }
-
-            @Override
-            public void onError(String error) {
-                Toast.makeText(ChatActivity.this, "Ошибка обновления био: " + error, Toast.LENGTH_SHORT).show();
-            }
-        });
+        // Обновляем UI
+        updateProfileUI();
+        // Отправляем в БД в фоне
+        RegisterContext.updateProfileAsync(this, null, bio, null);
+        Toast.makeText(this, "Био обновлено", Toast.LENGTH_SHORT).show();
+        Log.d(TAG, "Локальное био обновлено: " + bio);
     }
 
     public void startImagePicker() {
-        Intent intent = new Intent(Intent.ACTION_PICK);
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
         intent.setType("image/*");
         startActivityForResult(intent, PICK_IMAGE_REQUEST);
+        Log.d(TAG, "Запущен выбор изображения через ACTION_OPEN_DOCUMENT");
     }
 
     public void showProfileEditor(int layoutId) {
@@ -420,24 +453,50 @@ public class ChatActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
         try {
             if (requestCode == PICK_IMAGE_REQUEST && resultCode == RESULT_OK && data != null && data.getData() != null) {
-                String imagePath = FileUtils.getPath(this, data.getData());
-                RegisterContext.updateProfile(this, null, null, imagePath, new RegisterContext.Callback<Void>() {
-                    @Override
-                    public void onSuccess(Void result) {
-                        Log.d(TAG, "Изображение профиля обновлено");
-                        Toast.makeText(ChatActivity.this, "Изображение профиля обновлено", Toast.LENGTH_SHORT).show();
-                        fetchProfileData();
+                Uri imageUri = data.getData();
+                String imagePath = FileUtils.getPath(this, imageUri);
+                if (imagePath != null) {
+                    // Сжимаем изображение
+                    String compressedPath = FileUtils.compressImage(this, imagePath);
+                    // Сохраняем локально
+                    profileImageUrl = compressedPath;
+                    SharedPreferences prefs = getSharedPreferences("auth_prefs", MODE_PRIVATE);
+                    prefs.edit().putString("image_url", compressedPath).apply();
+
+                    // Обновляем ImageView сразу
+                    View sheetView = bottomSheet.getContentView();
+                    if (sheetView != null) {
+                        ImageView profileImage = sheetView.findViewById(R.id.image_profile);
+                        if (profileImage != null) {
+                            Glide.with(this)
+                                    .load(compressedPath)
+                                    .placeholder(R.drawable.default_profile)
+                                    .error(R.drawable.default_profile)
+                                    .circleCrop()
+                                    .into(profileImage);
+                            Log.d(TAG, "Фото отображено в ImageView: " + compressedPath);
+                        } else {
+                            Log.e(TAG, "ImageView с ID image_profile не найден в BottomSheet");
+                        }
+                    } else {
+                        Log.e(TAG, "BottomSheet content view is null");
                     }
 
-                    @Override
-                    public void onError(String error) {
-                        Log.e(TAG, "Ошибка загрузки изображения: " + error);
-                        Toast.makeText(ChatActivity.this, "Ошибка загрузки изображения: " + error, Toast.LENGTH_SHORT).show();
-                    }
-                });
+                    // Обновляем UI
+                    updateProfileUI();
+                    // Показываем тост
+                    Toast.makeText(this, "Фото профиля обновлено", Toast.LENGTH_SHORT).show();
+                    // Отправляем в БД в фоне
+                    RegisterContext.updateProfileAsync(this, null, null, compressedPath);
+                    Log.d(TAG, "Локальное фото обновлено: " + compressedPath);
+                } else {
+                    Log.e(TAG, "Не удалось получить путь к изображению");
+                    Toast.makeText(this, "Ошибка выбора изображения", Toast.LENGTH_SHORT).show();
+                }
             }
         } catch (Exception e) {
-            Log.e(TAG, "Ошибка обработки результата: " + e.getMessage());
+            Log.e(TAG, "Ошибка обработки результата: " + e.getMessage(), e);
+            Toast.makeText(this, "Ошибка обработки изображения", Toast.LENGTH_SHORT).show();
         }
     }
 

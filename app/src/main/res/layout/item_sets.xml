@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="70dp">
+    android:layout_height="70dp"
+    android:clipChildren="false"
+    android:clipToPadding="false">
 
     <RelativeLayout
         android:layout_width="50dp"
@@ -11,7 +13,6 @@
             android:id="@+id/warmup"
             android:layout_width="30dp"
             android:layout_height="30dp"
-            android:visibility="gone"
             android:background="@drawable/warmup"
             android:layout_centerInParent="true"/>
 
@@ -87,7 +88,7 @@
         android:id="@+id/remove_set"
         android:layout_width="30dp"
         android:layout_height="30dp"
-        android:background="@drawable/more"
+        android:background="@drawable/delete3"
         android:layout_centerVertical="true"
         android:layout_alignParentEnd="true" />
 

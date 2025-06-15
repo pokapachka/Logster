@@ -19,7 +19,9 @@
         android:layout_width="30dp"
         android:layout_height="30dp"
         android:layout_marginStart="10dp"
-        android:layout_marginTop="35dp">
+        android:layout_marginTop="35dp"
+        android:clickable="true"
+        android:focusable="true">
 
         <ImageView
             android:id="@+id/btn_plus"
@@ -43,7 +45,7 @@
             android:layout_marginEnd="50dp"
             android:background="@drawable/logout"
             android:clickable="true"
-            android:focusable="true" />
+            android:focusable="true"/>
         <ImageView
             android:id="@+id/delete"
             android:layout_alignParentEnd="true"
@@ -85,7 +87,10 @@
         android:layout_below="@id/description"
         android:layout_marginStart="10dp"
         android:layout_marginTop="30dp"
-        android:layout_marginEnd="15dp">
+        android:layout_marginEnd="15dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:background="?android:attr/selectableItemBackground">
 
         <ImageView
             android:layout_width="50dp"
@@ -94,6 +99,7 @@
             android:background="@drawable/dog" />
 
         <TextView
+            android:id="@+id/tag_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="55dp"
@@ -111,18 +117,12 @@
             android:textColor="#ABACB5"
             android:textSize="15sp" />
 
-        <RelativeLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent">
-
-            <ImageView
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:layout_alignParentEnd="true"
-                android:layout_centerVertical="true"
-                android:layout_gravity="center_vertical"
-                android:background="@drawable/add_ex" />
-        </RelativeLayout>
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_gravity="center_vertical|end"
+            android:layout_marginEnd="10dp"
+            android:background="@drawable/add_ex" />
     </FrameLayout>
 
     <FrameLayout
@@ -131,7 +131,10 @@
         android:layout_height="70dp"
         android:layout_below="@id/edit_tag"
         android:layout_marginStart="10dp"
-        android:layout_marginEnd="15dp">
+        android:layout_marginEnd="15dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:background="?android:attr/selectableItemBackground">
 
         <ImageView
             android:layout_width="50dp"
@@ -157,18 +160,12 @@
             android:textColor="#ABACB5"
             android:textSize="15sp" />
 
-        <RelativeLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent">
-
-            <ImageView
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:layout_alignParentEnd="true"
-                android:layout_centerVertical="true"
-                android:layout_gravity="center_vertical"
-                android:background="@drawable/add_ex" />
-        </RelativeLayout>
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_gravity="center_vertical|end"
+            android:layout_marginEnd="10dp"
+            android:background="@drawable/add_ex" />
     </FrameLayout>
 
     <FrameLayout
@@ -177,7 +174,10 @@
         android:layout_height="70dp"
         android:layout_below="@id/edit_image"
         android:layout_marginStart="10dp"
-        android:layout_marginEnd="15dp">
+        android:layout_marginEnd="15dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:background="?android:attr/selectableItemBackground">
 
         <ImageView
             android:layout_width="50dp"
@@ -203,18 +203,12 @@
             android:textColor="#ABACB5"
             android:textSize="15sp" />
 
-        <RelativeLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent">
-
-            <ImageView
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:layout_alignParentEnd="true"
-                android:layout_centerVertical="true"
-                android:layout_gravity="center_vertical"
-                android:background="@drawable/add_ex" />
-        </RelativeLayout>
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_gravity="center_vertical|end"
+            android:layout_marginEnd="10dp"
+            android:background="@drawable/add_ex" />
     </FrameLayout>
 
     <RelativeLayout

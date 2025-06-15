@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/welcome"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0B0B0E"
+    tools:context=".SplashActivity">
+
+    <TextView
+        android:id="@+id/logster"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="65dp"
+        android:layout_marginStart="20dp"
+        android:text="Logster"
+        android:textSize="40sp"
+        android:textStyle="bold"
+        android:fontFamily="sans-serif"
+        android:textColor="#00FFFFFF" />
+
+    <TextView
+        android:id="@+id/logster1"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Logster"
+        android:textSize="70sp"
+        android:textStyle="bold"
+        android:textColor="#FFFFFF"
+        android:fontFamily="sans-serif"
+        android:layout_centerInParent="true"/>
+
+</RelativeLayout>

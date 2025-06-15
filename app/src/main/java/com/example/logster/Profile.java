@@ -35,7 +35,8 @@ public class Profile {
                 View saveBtn = view.findViewById(R.id.save_btn);
                 View back = view.findViewById(R.id.back);
                 if (tagEditText == null || saveBtn == null || back == null) {
-                    Log.e(TAG, "Missing UI elements for R.layout.profile_tag");
+                    Log.e(TAG, "Missing UI elements for R.layout.profile_tag: tag_edit_text=" + (tagEditText == null) +
+                            ", save_btn=" + (saveBtn == null) + ", back=" + (back == null));
                     Toast.makeText(activity, "Ошибка интерфейса тега", Toast.LENGTH_SHORT).show();
                     return;
                 }
@@ -58,16 +59,20 @@ public class Profile {
                 View uploadBtn = view.findViewById(R.id.upload_image);
                 View back = view.findViewById(R.id.back);
                 if (profileImage == null || uploadBtn == null || back == null) {
-                    Log.e(TAG, "Missing UI elements for R.layout.profile_image");
+                    Log.e(TAG, "Missing UI elements for R.layout.profile_image: image_profile=" + (profileImage == null) +
+                            ", upload_btn=" + (uploadBtn == null) + ", back=" + (back == null));
                     Toast.makeText(activity, "Ошибка интерфейса фото", Toast.LENGTH_SHORT).show();
                     return;
                 }
+                // Круглая обрезка и центрирование изображения
+                profileImage.setScaleType(ImageView.ScaleType.CENTER_CROP);
                 String imageUrl = activity instanceof ChatActivity ? ((ChatActivity) activity).getProfileImageUrl() : null;
                 if (imageUrl != null && !imageUrl.isEmpty()) {
                     Glide.with(activity)
                             .load(imageUrl)
                             .placeholder(R.drawable.default_profile)
                             .error(R.drawable.default_profile)
+                            .circleCrop()
                             .into(profileImage);
                 } else {
                     profileImage.setImageResource(R.drawable.default_profile);
@@ -75,7 +80,7 @@ public class Profile {
                 uploadBtn.setOnClickListener(v -> {
                     if (activity instanceof ChatActivity) {
                         ((ChatActivity) activity).startImagePicker();
-                        bottomSheet.switchSheet(R.layout.profile, null, true, R.anim.slide_out_right, R.anim.slide_in_left);
+                        // Остаемся на текущем экране
                     }
                 });
                 back.setOnClickListener(v -> bottomSheet.switchSheet(R.layout.profile, null, true, R.anim.slide_out_right, R.anim.slide_in_left));
@@ -84,7 +89,8 @@ public class Profile {
                 View saveBtn = view.findViewById(R.id.save_btn);
                 View back = view.findViewById(R.id.back);
                 if (bioEditText == null || saveBtn == null || back == null) {
-                    Log.e(TAG, "Missing UI elements for R.layout.profile_bio");
+                    Log.e(TAG, "Missing UI elements for R.layout.profile_bio: bio_edit_text=" + (bioEditText == null) +
+                            ", save_btn=" + (saveBtn == null) + ", back=" + (back == null));
                     Toast.makeText(activity, "Ошибка интерфейса био", Toast.LENGTH_SHORT).show();
                     return;
                 }
@@ -113,7 +119,10 @@ public class Profile {
 
                 if (editTagBtn == null || editImageBtn == null || editBioBtn == null || close == null ||
                         logoutBtn == null || deleteBtn == null || continueProfileBtn == null) {
-                    Log.e(TAG, "Missing UI elements for R.layout.profile");
+                    Log.e(TAG, "Missing UI elements for R.layout.profile: edit_tag=" + (editTagBtn == null) +
+                            ", edit_image=" + (editImageBtn == null) + ", edit_bio=" + (editBioBtn == null) +
+                            ", close=" + (close == null) + ", logout=" + (logoutBtn == null) +
+                            ", delete=" + (deleteBtn == null) + ", continue_profile=" + (continueProfileBtn == null));
                     Toast.makeText(activity, "Ошибка интерфейса профиля", Toast.LENGTH_SHORT).show();
                     return;
                 }
@@ -130,7 +139,7 @@ public class Profile {
                             Toast.makeText(activity, "Выход выполнен", Toast.LENGTH_SHORT).show();
                             ((ChatActivity) activity).initializeUI();
                             ((ChatActivity) activity).autorizations(null);
-                            ((ChatActivity) activity).loadMessages(); // Принудительное обновление
+                            ((ChatActivity) activity).loadMessages();
                         });
                     }
                 });
@@ -144,7 +153,7 @@ public class Profile {
                                     Toast.makeText(activity, "Аккаунт удалён", Toast.LENGTH_SHORT).show();
                                     ((ChatActivity) activity).initializeUI();
                                     ((ChatActivity) activity).autorizations(null);
-                                    ((ChatActivity) activity).loadMessages(); // Принудительное обновление
+                                    ((ChatActivity) activity).loadMessages();
                                 });
                             }
                         }

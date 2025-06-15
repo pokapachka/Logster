@@ -6,93 +6,40 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
 import android.widget.ImageView;
+
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+
 import java.util.ArrayList;
 import java.util.List;
 
-public class SelectedSetsAdapter extends RecyclerView.Adapter<SelectedSetsAdapter.ViewHolder> {
+public class SelectedSetsAdapter extends RecyclerView.Adapter<SelectedSetsAdapter.SetViewHolder> {
     private List<Set> sets;
-    private OnSetRemovedListener onSetRemovedListener;
-    private MainActivity mainActivity;
+    private final OnSetRemovedListener listener;
+    private final MainActivity mainActivity;
 
     public interface OnSetRemovedListener {
         void onSetRemoved(Set set);
     }
 
     public SelectedSetsAdapter(List<Set> sets, OnSetRemovedListener listener, MainActivity mainActivity) {
-        this.sets = new ArrayList<>(sets != null ? sets : new ArrayList<>());
-        this.onSetRemovedListener = listener;
+        this.sets = sets != null ? sets : new ArrayList<>();
+        this.listener = listener;
         this.mainActivity = mainActivity;
         Log.d("SelectedSetsAdapter", "Инициализирован с " + this.sets.size() + " подходами");
     }
 
-    public void updateSets(List<Set> newSets) {
-        this.sets.clear();
-        this.sets.addAll(newSets != null ? newSets : new ArrayList<>());
-        notifyDataSetChanged();
-        Log.d("SelectedSetsAdapter", "Обновлено подходов: " + sets.size());
-    }
-
     @NonNull
     @Override
-    public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+    public SetViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_sets, parent, false);
-        return new ViewHolder(view);
+        return new SetViewHolder(view);
     }
 
     @Override
-    public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+    public void onBindViewHolder(@NonNull SetViewHolder holder, int position) {
         Set set = sets.get(position);
-        if (holder.weightEditText != null) {
-            holder.weightEditText.setText(String.valueOf(set.getWeight()));
-        } else {
-            Log.e("SelectedSetsAdapter", "weightEditText null на позиции: " + position);
-        }
-        if (holder.repsEditText != null) {
-            holder.repsEditText.setText(String.valueOf(set.getReps()));
-        } else {
-            Log.e("SelectedSetsAdapter", "repsEditText null на позиции: " + position);
-        }
-        if (holder.removeButton != null) {
-            holder.removeButton.setOnClickListener(v -> {
-                if (onSetRemovedListener != null && !set.getId().startsWith("placeholder_")) {
-                    onSetRemovedListener.onSetRemoved(set);
-                    sets.remove(set);
-                    notifyItemRemoved(position);
-                    Log.d("SelectedSetsAdapter", "Удалён подход: id=" + set.getId());
-                }
-            });
-        } else {
-            Log.e("SelectedSetsAdapter", "removeButton null на позиции: " + position);
-        }
-        // Сохранение изменений веса и повторений
-        if (holder.weightEditText != null && holder.repsEditText != null) {
-            holder.weightEditText.setOnFocusChangeListener((v, hasFocus) -> {
-                if (!hasFocus) {
-                    try {
-                        float weight = Float.parseFloat(holder.weightEditText.getText().toString());
-                        set.setWeight(weight);
-                        mainActivity.saveSetToWorkout(set);
-                        Log.d("SelectedSetsAdapter", "Сохранён вес: " + weight + " для подхода: " + set.getId());
-                    } catch (NumberFormatException e) {
-                        Log.w("SelectedSetsAdapter", "Некорректный вес для подхода: " + set.getId());
-                    }
-                }
-            });
-            holder.repsEditText.setOnFocusChangeListener((v, hasFocus) -> {
-                if (!hasFocus) {
-                    try {
-                        int reps = Integer.parseInt(holder.repsEditText.getText().toString());
-                        set.setReps(reps);
-                        mainActivity.saveSetToWorkout(set);
-                        Log.d("SelectedSetsAdapter", "Сохранены повторения: " + reps + " для подхода: " + set.getId());
-                    } catch (NumberFormatException e) {
-                        Log.w("SelectedSetsAdapter", "Некорректное количество повторений для подхода: " + set.getId());
-                    }
-                }
-            });
-        }
+        holder.bind(set);
         Log.d("SelectedSetsAdapter", "Привязан подход: id=" + set.getId() + ", позиция=" + position);
     }
 
@@ -101,20 +48,68 @@ public class SelectedSetsAdapter extends RecyclerView.Adapter<SelectedSetsAdapte
         return sets.size();
     }
 
-    static class ViewHolder extends RecyclerView.ViewHolder {
-        EditText weightEditText;
-        EditText repsEditText;
-        ImageView removeButton;
+    public void updateSets(List<Set> newSets) {
+        this.sets.clear();
+        this.sets.addAll(newSets);
+        notifyDataSetChanged();
+        Log.d("SelectedSetsAdapter", "Обновлены подходы: новый размер=" + sets.size());
+    }
 
-        ViewHolder(@NonNull View itemView) {
+    class SetViewHolder extends RecyclerView.ViewHolder {
+        EditText editWeight, editReps;
+        ImageView removeSet;
+
+        SetViewHolder(@NonNull View itemView) {
             super(itemView);
-            weightEditText = itemView.findViewById(R.id.edit_weight);
-            repsEditText = itemView.findViewById(R.id.edit_reps);
-            removeButton = itemView.findViewById(R.id.remove_set);
-            if (weightEditText == null || repsEditText == null || removeButton == null) {
-                Log.e("SelectedSetsAdapter", "Ошибка инициализации ViewHolder: weightEditText=" +
-                        (weightEditText != null) + ", repsEditText=" + (repsEditText != null) +
-                        ", removeButton=" + (removeButton != null));
+            editWeight = itemView.findViewById(R.id.edit_weight);
+            editReps = itemView.findViewById(R.id.edit_reps);
+            removeSet = itemView.findViewById(R.id.remove_set);
+
+            editWeight.setOnFocusChangeListener((v, hasFocus) -> {
+                if (!hasFocus) {
+                    updateSet(getAdapterPosition());
+                }
+            });
+            editReps.setOnFocusChangeListener((v, hasFocus) -> {
+                if (!hasFocus) {
+                    updateSet(getAdapterPosition());
+                }
+            });
+            removeSet.setOnClickListener(v -> {
+                int position = getAdapterPosition();
+                if (position != RecyclerView.NO_POSITION && position < sets.size()) {
+                    Set set = sets.get(position);
+                    listener.onSetRemoved(set);
+                    sets.remove(position);
+                    notifyItemRemoved(position);
+                    Log.d("SelectedSetsAdapter", "Удалён подход: id=" + set.getId() + ", позиция=" + position);
+                }
+            });
+        }
+
+        void bind(Set set) {
+            editWeight.setText(set.getWeight() > 0 ? String.valueOf(set.getWeight()) : "");
+            editReps.setText(set.getReps() > 0 ? String.valueOf(set.getReps()) : "");
+            Log.d("SelectedSetsAdapter", "Bind: id=" + set.getId() + ", вес=" + set.getWeight() + ", повт=" + set.getReps());
+        }
+
+        private void updateSet(int position) {
+            if (position == RecyclerView.NO_POSITION || position >= sets.size()) {
+                Log.w("SelectedSetsAdapter", "Невалидная позиция для обновления: " + position);
+                return;
+            }
+            Set set = sets.get(position);
+            try {
+                String weightText = editWeight.getText().toString();
+                String repsText = editReps.getText().toString();
+                float weight = weightText.isEmpty() ? 0.0f : Float.parseFloat(weightText);
+                int reps = repsText.isEmpty() ? 0 : Integer.parseInt(repsText);
+                set.setWeight(weight);
+                set.setReps(reps);
+                mainActivity.saveSetToWorkout(set);
+                Log.d("SelectedSetsAdapter", "Обновлён подход: id=" + set.getId() + ", вес=" + weight + ", повт=" + reps);
+            } catch (NumberFormatException e) {
+                Log.e("SelectedSetsAdapter", "Ошибка формата числа: " + e.getMessage());
             }
         }
     }

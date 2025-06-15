@@ -14,9 +14,9 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentTop="true"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        android:layout_marginTop="70dp"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:layout_marginTop="65dp"
         android:background="#0B0B0E">
 
         <TextView
@@ -31,20 +31,24 @@
             android:textStyle="bold" />
 
         <FrameLayout
+            android:id="@+id/auth_button_container"
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:layout_alignParentEnd="true"
             android:layout_centerVertical="true"
-            android:background="@drawable/background_btn"
-            android:onClick="autorizations">
-
-            <ImageView
-                android:id="@+id/btn_plus"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_gravity="center"
-                android:src="@drawable/login" />
-        </FrameLayout>
+            android:background="@drawable/circle_background"
+            android:onClick="autorizations"
+            android:clickable="true"
+            android:focusable="true"
+            android:clipToOutline="true">
+        <ImageView
+            android:id="@+id/auth_button_image"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:layout_gravity="center"
+            android:scaleType="centerCrop"
+            android:src="@drawable/login" />
+    </FrameLayout>
 
         <FrameLayout
             android:layout_width="40dp"
@@ -57,8 +61,8 @@
 
             <ImageView
                 android:id="@+id/about"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
                 android:layout_gravity="center"
                 android:src="@drawable/about" />
         </FrameLayout>

@@ -15,6 +15,7 @@ import android.widget.TextView;
 import com.google.android.flexbox.FlexboxLayout;
 
 import java.util.List;
+import java.util.Map;
 
 public class BottomSheets {
     private static final String TAG = "BottomSheets";
@@ -40,7 +41,7 @@ public class BottomSheets {
             return;
         }
         params = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        initialTopMargin = dpToPx(activity, 80);
+        initialTopMargin = dpToPx(activity, 70);
         params.topMargin = initialTopMargin;
         isShowing = false;
     }
@@ -147,7 +148,7 @@ public class BottomSheets {
         if (screenHeight == 0) {
             screenHeight = activity.getResources().getDisplayMetrics().heightPixels;
         }
-        int limitedHeight = dpToPx(activity, 250);
+        int limitedHeight = dpToPx(activity, 350);
         int limitedTopMargin = screenHeight - limitedHeight;
         params.topMargin = screenHeight;
         sheetView.setLayoutParams(params);
@@ -371,14 +372,24 @@ public class BottomSheets {
     }
 
     public void switchSheet(int layoutId, String data, boolean useHorizontalTransition, int exitAnim, int enterAnim) {
+        // Hide keyboard based on activity type
         if (activity instanceof MainActivity) {
             ((MainActivity) activity).hideKeyboard();
-            // Сохраняем имя упражнения для populateExerciseDescription
             ((MainActivity) activity).setCurrentExerciseName(data);
+        } else if (activity instanceof ChatActivity) {
+            ((ChatActivity) activity).hideKeyboard();
         }
-        View newView = LayoutInflater.from(activity).inflate(layoutId, null);
 
-        // Устанавливаем слушатель для кнопки закрытия
+        // Inflate new layout with error handling
+        View newView = null;
+        try {
+            newView = LayoutInflater.from(activity).inflate(layoutId, null);
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to inflate layout ID: " + layoutId + ", Error: " + e.getMessage(), e);
+            return; // Prevent further execution
+        }
+
+        // Set listener for close button
         View close = newView.findViewById(R.id.close);
         if (close != null) {
             close.setOnClickListener(v -> {
@@ -390,17 +401,64 @@ public class BottomSheets {
             });
         }
 
+        // Handle different layouts
         if (layoutId == R.layout.exercises_description && activity instanceof MainActivity) {
-            // Ничего дополнительного не требуется, populateExerciseDescription вызывается в setContentView
-        } else if (layoutId == R.layout.add_exercises) {
-            // Можно добавить дополнительную инициализацию, если требуется
-        }
-
-        if (useHorizontalTransition && exitAnim != 0 && enterAnim != 0) {
-            showWithHorizontalTransition(exitAnim, enterAnim, newView, null);
-        } else {
+            Log.d(TAG, "Handling exercise description screen");
             setContentView(newView);
             show();
+        } else if (layoutId == R.layout.add_exercises && activity instanceof MainActivity) {
+            Log.d(TAG, "Handling add exercises screen");
+            setContentView(newView);
+            show();
+        } else if (layoutId == R.layout.autorization && activity instanceof ChatActivity) {
+            Authorization auth = new Authorization(activity);
+            if (useHorizontalTransition && exitAnim != 0 && enterAnim != 0) {
+                showWithHorizontalTransition(exitAnim, enterAnim, newView, () -> auth.show());
+            } else {
+                setContentView(newView);
+                auth.show();
+            }
+            Log.d(TAG, "Initialized authorization screen");
+        } else if (layoutId == R.layout.registration && activity instanceof ChatActivity) {
+            Registration reg = new Registration(activity);
+            if (useHorizontalTransition && exitAnim != 0 && enterAnim != 0) {
+                showWithHorizontalTransition(exitAnim, enterAnim, newView, () -> reg.show());
+            } else {
+                setContentView(newView);
+                reg.show();
+            }
+            Log.d(TAG, "Initialized registration screen");
+        } else if (layoutId == R.layout.profile || layoutId == R.layout.profile_tag ||
+                layoutId == R.layout.profile_bio || layoutId == R.layout.profile_image) {
+            if (activity instanceof ChatActivity) {
+                Profile profile = new Profile(activity, this);
+                View back = newView.findViewById(R.id.back);
+                if (back != null) {
+                    back.setOnClickListener(v -> switchSheet(R.layout.profile, null, true,
+                            R.anim.slide_out_right, R.anim.slide_in_left));
+                }
+                if (useHorizontalTransition && exitAnim != 0 && enterAnim != 0) {
+                    showWithHorizontalTransition(exitAnim, enterAnim, newView,
+                            () -> profile.setupProfileSheet(layoutId, data));
+                } else {
+                    setContentView(newView);
+                    profile.setupProfileSheet(layoutId, data);
+                    show();
+                }
+                Log.d(TAG, "Initialized profile screen: " + layoutId);
+            } else {
+                Log.e(TAG, "Activity is not ChatActivity for profile layout: " + layoutId);
+                setContentView(newView);
+                show();
+            }
+        } else {
+            if (useHorizontalTransition && exitAnim != 0 && enterAnim != 0) {
+                showWithHorizontalTransition(exitAnim, enterAnim, newView, null);
+            } else {
+                setContentView(newView);
+                show();
+            }
+            Log.d(TAG, "Handling generic layout with ID: " + layoutId);
         }
     }
 }

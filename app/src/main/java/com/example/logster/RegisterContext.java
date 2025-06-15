@@ -8,6 +8,7 @@ import android.util.Log;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.File;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
@@ -91,6 +92,7 @@ public class RegisterContext {
         SharedPreferences prefs = context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE);
         prefs.edit().clear().apply();
         cleanupRealtime();
+        Log.d(TAG, "Пользователь вышел, локальные данные очищены");
     }
 
     public static void fetchMessages(Context context, Callback<List<Message>> callback, RealtimeCallback realtimeCallback) {
@@ -498,6 +500,7 @@ public class RegisterContext {
                     OkHttpClient client = new OkHttpClient();
                     String encodedUserId = URLEncoder.encode(userId, "UTF-8");
 
+                    String imageUrl = null;
                     if (imagePath != null) {
                         String fileName = userId + "_" + System.currentTimeMillis() + ".jpg";
                         java.io.File file = new java.io.File(imagePath);
@@ -518,12 +521,13 @@ public class RegisterContext {
                             error = "Failed to upload image: HTTP " + uploadResponse.code();
                             return null;
                         }
+                        imageUrl = STORAGE_URL + fileName;
                     }
 
                     JSONObject updateData = new JSONObject();
                     if (tag != null) updateData.put("username", tag.replace("@", ""));
                     if (bio != null) updateData.put("bio", bio);
-                    if (imagePath != null) updateData.put("image", STORAGE_URL + userId + "_" + System.currentTimeMillis() + ".jpg");
+                    if (imageUrl != null) updateData.put("image", imageUrl);
 
                     if (updateData.length() > 0) {
                         RequestBody updateBody = RequestBody.create(updateData.toString(), MediaType.parse("application/json"));
@@ -558,6 +562,126 @@ public class RegisterContext {
                 } else {
                     callback.onSuccess(null);
                 }
+            }
+        }.execute();
+    }
+
+    // Новый метод для асинхронной отправки без уведомлений
+    public static void updateProfileAsync(Context context, String tag, String bio, String imagePath) {
+        new AsyncTask<Void, Void, Void>() {
+            private static final int MAX_RETRIES = 3;
+            private static final long RETRY_DELAY_MS = 2000;
+
+            @Override
+            protected Void doInBackground(Void... voids) {
+                try {
+                    SharedPreferences prefs = context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE);
+                    String userId = prefs.getString("user_id", null);
+                    String accessToken = prefs.getString("access_token", null);
+                    if (userId == null || accessToken == null) {
+                        Log.e(TAG, "User not authenticated for async profile update");
+                        return null;
+                    }
+
+                    OkHttpClient client = new OkHttpClient.Builder()
+                            .connectTimeout(10, TimeUnit.SECONDS) // Increased timeout
+                            .readTimeout(10, TimeUnit.SECONDS)    // Increased timeout
+                            .writeTimeout(10, TimeUnit.SECONDS)   // Added write timeout
+                            .build();
+                    String encodedUserId = URLEncoder.encode(userId, "UTF-8");
+
+                    String imageUrl = null;
+                    if (imagePath != null) {
+                        String fileName = userId + "_" + System.currentTimeMillis() + ".jpg";
+                        File file = new File(imagePath);
+                        if (!file.exists()) {
+                            Log.e(TAG, "Image file does not exist: " + imagePath);
+                            return null;
+                        }
+
+                        RequestBody imageBody = new MultipartBody.Builder()
+                                .setType(MultipartBody.FORM)
+                                .addFormDataPart("file", fileName, RequestBody.create(file, MediaType.parse("image/jpeg")))
+                                .build();
+                        Request uploadRequest = new Request.Builder()
+                                .url(STORAGE_URL + fileName)
+                                .header("Authorization", "Bearer " + accessToken)
+                                .header("apikey", ANON_KEY)
+                                .post(imageBody)
+                                .build();
+
+                        // Retry logic for image upload
+                        Response uploadResponse = executeWithRetry(client, uploadRequest, "image upload");
+                        if (uploadResponse != null && uploadResponse.isSuccessful()) {
+                            imageUrl = STORAGE_URL + fileName;
+                            Log.d(TAG, "Image uploaded to DB: " + imageUrl);
+                        } else {
+                            String errorBody = uploadResponse != null && uploadResponse.body() != null ? uploadResponse.body().string() : "No response body";
+                            Log.e(TAG, "Image upload failed: HTTP " + (uploadResponse != null ? uploadResponse.code() : "null") + ", Body: " + errorBody);
+                            return null;
+                        }
+                    }
+
+                    JSONObject updateData = new JSONObject();
+                    if (tag != null) updateData.put("username", tag.replace("@", ""));
+                    if (bio != null) updateData.put("bio", bio);
+                    if (imageUrl != null) updateData.put("image", imageUrl);
+
+                    if (updateData.length() > 0) {
+                        RequestBody updateBody = RequestBody.create(updateData.toString(), MediaType.parse("application/json"));
+                        Request updateRequest = new Request.Builder()
+                                .url(REST_URL + "?id=eq." + encodedUserId)
+                                .header("Authorization", "Bearer " + accessToken)
+                                .header("apikey", ANON_KEY)
+                                .header("Content-Type", "application/json")
+                                .header("Prefer", "return=minimal")
+                                .patch(updateBody)
+                                .build();
+
+                        // Retry logic for profile update
+                        Response updateResponse = executeWithRetry(client, updateRequest, "profile update");
+                        if (updateResponse != null && updateResponse.isSuccessful()) {
+                            Log.d(TAG, "Profile updated in DB: tag=" + tag + ", bio=" + bio + ", image=" + imageUrl);
+                        } else {
+                            String errorBody = updateResponse != null && updateResponse.body() != null ? updateResponse.body().string() : "No response body";
+                            Log.e(TAG, "Profile update failed: HTTP " + (updateResponse != null ? updateResponse.code() : "null") + ", Body: " + errorBody);
+                        }
+                    }
+                    return null;
+                } catch (Exception e) {
+                    Log.e(TAG, "Async profile update error: " + e.getMessage(), e);
+                    return null;
+                }
+            }
+
+            private Response executeWithRetry(OkHttpClient client, Request request, String requestType) {
+                int attempt = 0;
+                Response response = null;
+                while (attempt < MAX_RETRIES) {
+                    try {
+                        response = client.newCall(request).execute();
+                        return response; // Return immediately if successful
+                    } catch (java.net.SocketTimeoutException e) {
+                        attempt++;
+                        Log.w(TAG, "Timeout on " + requestType + ", attempt " + attempt + "/" + MAX_RETRIES + ": " + e.getMessage());
+                        if (attempt < MAX_RETRIES) {
+                            try {
+                                Thread.sleep(RETRY_DELAY_MS);
+                            } catch (InterruptedException ie) {
+                                Log.e(TAG, "Retry interrupted: " + ie.getMessage());
+                                Thread.currentThread().interrupt();
+                                return null;
+                            }
+                        } else {
+                            Log.e(TAG, "Max retries reached for " + requestType + ": " + e.getMessage());
+                            return null;
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, "Unexpected error on " + requestType + ": " + e.getMessage(), e);
+                        return null;
+                    }
+                }
+                return response;
             }
         }.execute();
     }
@@ -651,10 +775,9 @@ public class RegisterContext {
 
                     JSONObject profileData = new JSONObject();
                     profileData.put("id", userId);
-                    profileData.put("email", email); // Добавляем email
+                    profileData.put("email", email);
                     profileData.put("username", username);
                     if (bio != null) profileData.put("bio", bio);
-                    Log.d(TAG, "Creating profile with data: " + profileData.toString()); // Логируем данные профиля
                     RequestBody profileBody = RequestBody.create(profileData.toString(), MediaType.parse("application/json"));
                     Request profileRequest = new Request.Builder()
                             .url(REST_URL)
@@ -668,7 +791,7 @@ public class RegisterContext {
                     String profileResponseBody = profileResponse.body() != null ? profileResponse.body().string() : "";
                     Log.d(TAG, "CreateProfile Response: Code " + profileResponse.code() + ", Body: " + profileResponseBody);
                     if (!profileResponse.isSuccessful()) {
-                        error = "Failed to create profile: HTTP " + profileResponse.code() + ", " + profileResponseBody;
+                        error = "Failed to create profile: HTTP " + profileResponse.code();
                         return null;
                     }
 
@@ -678,7 +801,9 @@ public class RegisterContext {
                             .putString("refresh_token", refreshToken)
                             .putString("user_id", userId)
                             .putString("username", username)
-                            .putString("email", email) // Сохраняем email
+                            .putString("email", email)
+                            .putString("tag", "@" + username)
+                            .putString("bio", bio != null ? bio : "")
                             .apply();
                     return userId;
                 } catch (Exception e) {
@@ -710,7 +835,7 @@ public class RegisterContext {
                     String encodedEmail = URLEncoder.encode(email, "UTF-8");
                     String encodedUsername = URLEncoder.encode(username, "UTF-8");
                     String query = CHECK_USER_URL + "&or=(email.eq." + encodedEmail + ",username.eq." + encodedUsername + ")";
-                    Log.d(TAG, "CheckUser Query: " + query); // Логируем запрос
+                    Log.d(TAG, "CheckUser Query: " + query);
                     Request request = new Request.Builder()
                             .url(query)
                             .header("Authorization", ANON_KEY)
@@ -726,7 +851,7 @@ public class RegisterContext {
                         return null;
                     }
                     JSONArray users = new JSONArray(responseBody);
-                    return users.length() == 0; // Возвращаем true, если пользователь не существует
+                    return users.length() == 0;
                 } catch (Exception e) {
                     error = "Error checking user: " + e.getMessage();
                     Log.e(TAG, "Check user error", e);
@@ -799,6 +924,7 @@ public class RegisterContext {
                                 .putString("access_token", accessToken)
                                 .putString("refresh_token", refreshToken)
                                 .putString("user_id", userId)
+                                .putString("email", userEmail)
                                 .apply();
                         callback.onSuccess(userId, userEmail);
                     } catch (Exception e) {

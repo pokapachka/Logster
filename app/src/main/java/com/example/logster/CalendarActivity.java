@@ -1,5 +1,6 @@
 package com.example.logster;
 
+import android.app.ActivityOptions;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
@@ -12,13 +13,12 @@ import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
-import android.view.ViewGroup;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
-import android.widget.CheckBox;
 import android.widget.GridLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.ScrollView;
@@ -58,7 +58,7 @@ public class CalendarActivity extends AppCompatActivity {
     private BottomSheets calendarSheet;
     private View selectedDayView;
     private Map<DayOfWeek, String> weeklySchedule;
-    private Map<String, String> specificDates;
+    private Map<String, List<String>> specificDates; // Updated type
     private List<Workout> workouts;
 
     @Override
@@ -73,7 +73,7 @@ public class CalendarActivity extends AppCompatActivity {
         calendarSheet = new BottomSheets(this, R.layout.calendar_item);
 
         weeklySchedule = new HashMap<>();
-        specificDates = new HashMap<>();
+        specificDates = new HashMap<>(); // Initialize as Map<String, List<String>>
         workouts = new ArrayList<>();
 
         workouts = loadWorkouts();
@@ -150,35 +150,38 @@ public class CalendarActivity extends AppCompatActivity {
                 continue;
             }
 
-            String specificWorkoutId = specificDates.get(dateKey);
+            List<String> specificWorkoutIds = specificDates.getOrDefault(dateKey, new ArrayList<>());
             String weeklyWorkoutId = weeklySchedule.get(date.getDayOfWeek());
             Calendar today = Calendar.getInstance();
             boolean isFutureOrToday = tempCal.compareTo(today) >= 0;
 
             boolean hasValidWorkout = false;
-            if (specificWorkoutId != null) {
-                if (specificWorkoutId.isEmpty()) {
-                    continue;
-                }
-                for (Workout workout : workouts) {
-                    if (workout.id.equals(specificWorkoutId)) {
-                        hasValidWorkout = true;
-                        break;
+            // Если дата есть в specificDates, проверяем только её
+            if (specificDates.containsKey(dateKey)) {
+                if (!specificWorkoutIds.isEmpty()) {
+                    for (String workoutId : specificWorkoutIds) {
+                        for (Workout workout : workouts) {
+                            if (workout.id.equals(workoutId)) {
+                                hasValidWorkout = true;
+                                break;
+                            }
+                        }
+                        if (hasValidWorkout) break;
                     }
                 }
-                if (hasValidWorkout) {
-                    workoutDates.add(dateKey);
-                }
+                // Если specificWorkoutIds пуст, тренировки нет
             } else if (weeklyWorkoutId != null && !weeklyWorkoutId.isEmpty() && isFutureOrToday) {
+                // Проверяем weeklySchedule только если нет переопределения в specificDates
                 for (Workout workout : workouts) {
                     if (workout.id.equals(weeklyWorkoutId)) {
                         hasValidWorkout = true;
                         break;
                     }
                 }
-                if (hasValidWorkout) {
-                    workoutDates.add(dateKey);
-                }
+            }
+
+            if (hasValidWorkout) {
+                workoutDates.add(dateKey);
             }
         }
         Log.d("CalendarActivity", "Даты тренировок за месяц: " + workoutDates.size());
@@ -316,87 +319,150 @@ public class CalendarActivity extends AppCompatActivity {
                     dayText.setTextColor(Color.WHITE);
                 }
                 selectedDayView = null;
+                Log.d("CalendarActivity", "Bottom sheet закрыт, выделение дня сброшено");
             }
         });
+        Log.d("CalendarActivity", "Показан bottom sheet для даты: " + dateKey);
     }
 
     private void updateWorkoutsList(String dateKey, LinearLayout workoutsContainer, LocalDate localDate, Calendar selectedDate) {
         workoutsContainer.removeAllViews();
 
-        String specificWorkoutId = specificDates.get(dateKey);
+        List<String> specificWorkoutIds = specificDates.getOrDefault(dateKey, new ArrayList<>());
         String weeklyWorkoutId = weeklySchedule.get(localDate.getDayOfWeek());
         Calendar today = Calendar.getInstance();
         boolean isFutureOrToday = selectedDate.compareTo(today) >= 0;
+        boolean isToday = selectedDate.get(Calendar.YEAR) == today.get(Calendar.YEAR) &&
+                selectedDate.get(Calendar.MONTH) == today.get(Calendar.MONTH) &&
+                selectedDate.get(Calendar.DAY_OF_MONTH) == today.get(Calendar.DAY_OF_MONTH);
 
-        String activeWorkoutId = null;
-        if (specificWorkoutId != null) {
-            activeWorkoutId = specificWorkoutId.isEmpty() ? null : specificWorkoutId;
-        } else if (weeklyWorkoutId != null && !weeklyWorkoutId.isEmpty() && isFutureOrToday) {
-            activeWorkoutId = weeklyWorkoutId;
-        }
+        List<Workout> todayWorkouts = new ArrayList<>();
+        List<Workout> otherWorkouts = new ArrayList<>();
 
         for (Workout workout : workouts) {
-            CheckBox checkBox = new CheckBox(this);
-            checkBox.setText(workout.name);
-            checkBox.setTextSize(16);
-            checkBox.setTextColor(Color.WHITE);
-            boolean isChecked = activeWorkoutId != null && workout.id.equals(activeWorkoutId);
-            checkBox.setChecked(isChecked);
-            checkBox.setOnCheckedChangeListener((buttonView, newCheckedState) -> {
+            boolean isActive = specificWorkoutIds.contains(workout.id) ||
+                    (weeklyWorkoutId != null && weeklyWorkoutId.equals(workout.id) && isFutureOrToday);
+            if (isToday && isActive) {
+                todayWorkouts.add(workout);
+            } else {
+                otherWorkouts.add(workout);
+            }
+        }
+
+        List<Workout> sortedWorkouts = new ArrayList<>();
+        sortedWorkouts.addAll(todayWorkouts);
+        sortedWorkouts.addAll(otherWorkouts);
+
+        if (sortedWorkouts.isEmpty()) {
+            TextView emptyMessage = new TextView(this);
+            emptyMessage.setText("Сначала нужно создать тренировку");
+            emptyMessage.setTextSize(16);
+            emptyMessage.setTextColor(Color.WHITE);
+            emptyMessage.setGravity(Gravity.CENTER);
+            emptyMessage.setLayoutParams(new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+            ));
+            emptyMessage.setPadding(0, dpToPx(20), 0, dpToPx(20));
+            workoutsContainer.addView(emptyMessage);
+            return;
+        }
+
+        for (Workout workout : sortedWorkouts) {
+            View workoutItem = LayoutInflater.from(this).inflate(R.layout.item_calendar, workoutsContainer, false);
+
+            ImageView checkbox = workoutItem.findViewById(R.id.checkbox_selected);
+            TextView exerciseName = workoutItem.findViewById(R.id.exercise_name_selected);
+            TextView daysText = workoutItem.findViewById(R.id.days);
+
+            exerciseName.setText(workout.name);
+
+            List<String> workoutDays = new ArrayList<>();
+            for (Map.Entry<DayOfWeek, String> entry : weeklySchedule.entrySet()) {
+                if (entry.getValue() != null && entry.getValue().equals(workout.id)) {
+                    String dayName = entry.getKey().getDisplayName(java.time.format.TextStyle.FULL, new Locale("ru"));
+                    workoutDays.add(dayName.substring(0, 1).toUpperCase() + dayName.substring(1).toLowerCase());
+                }
+            }
+            daysText.setText(workoutDays.isEmpty() ? "Нет регулярных дней" : String.join(", ", workoutDays));
+
+            boolean isChecked = specificWorkoutIds.contains(workout.id) ||
+                    (weeklyWorkoutId != null && weeklyWorkoutId.equals(workout.id) && isFutureOrToday && !specificDates.containsKey(dateKey));
+            checkbox.setSelected(isChecked);
+
+            checkbox.setOnClickListener(v -> {
+                boolean newCheckedState = !checkbox.isSelected();
+                checkbox.setSelected(newCheckedState);
+
+                List<String> workoutIds = specificDates.getOrDefault(dateKey, new ArrayList<>());
                 if (newCheckedState) {
-                    specificDates.put(dateKey, workout.id);
-                    Log.d("CalendarActivity", "Добавлена тренировка " + workout.id + " на дату " + dateKey);
-                } else {
-                    String currentWorkoutId = specificDates.get(dateKey);
-                    if (currentWorkoutId == null || currentWorkoutId.isEmpty()) {
-                        specificDates.put(dateKey, "");
-                    } else {
-                        specificDates.remove(dateKey);
+                    if (!workoutIds.contains(workout.id)) {
+                        workoutIds.add(workout.id);
+                        specificDates.put(dateKey, workoutIds);
+                        Log.d("CalendarActivity", "Добавлена тренировка " + workout.id + " на дату " + dateKey);
                     }
-                    Log.d("CalendarActivity", "Удалена тренировка " + workout.id + " с даты " + dateKey);
+                } else {
+                    workoutIds.remove(workout.id);
+                    specificDates.put(dateKey, workoutIds);
+                    if (workoutIds.isEmpty()) {
+                        Log.d("CalendarActivity", "Дата " + dateKey + " теперь без тренировок");
+                    } else {
+                        Log.d("CalendarActivity", "Удалена тренировка " + workout.id + " с даты " + dateKey);
+                    }
                 }
                 saveSpecificDates();
                 syncWorkoutDates();
                 updateCalendar();
                 updateWorkoutsList(dateKey, workoutsContainer, localDate, selectedDate);
             });
-            workoutsContainer.addView(checkBox);
+
+            // Новый обработчик клика на весь блок
+            workoutItem.setOnClickListener(v -> openEditWorkoutSheet(workout.name));
+
+            workoutsContainer.addView(workoutItem);
+        }
+    }
+    private void openEditWorkoutSheet(String workoutName) {
+        if (calendarSheet != null && calendarSheet.isShowing()) {
+            calendarSheet.hide(() -> {
+                Intent intent = new Intent(CalendarActivity.this, MainActivity.class);
+                intent.putExtra("edit_workout", workoutName);
+                intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                ActivityOptions options = ActivityOptions.makeCustomAnimation(this, android.R.anim.fade_in, android.R.anim.fade_out);
+                startActivity(intent, options.toBundle());
+                Log.d("CalendarActivity", "Переход на редактирование тренировки: " + workoutName);
+            });
+        } else {
+            Intent intent = new Intent(CalendarActivity.this, MainActivity.class);
+            intent.putExtra("edit_workout", workoutName);
+            intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            ActivityOptions options = ActivityOptions.makeCustomAnimation(this, android.R.anim.fade_in, android.R.anim.fade_out);
+            startActivity(intent, options.toBundle());
+            Log.d("CalendarActivity", "Прямой переход на редактирование тренировки (sheet не отображается): " + workoutName);
         }
     }
 
     private void syncWorkoutDates() {
         LocalDate today = LocalDate.now();
         LocalDate endDate = today.plusYears(1);
+        for (Workout workout : workouts) workout.dates.clear();
 
-        for (Workout workout : workouts) {
-            workout.dates.clear();
-        }
-
-        for (Map.Entry<String, String> entry : specificDates.entrySet()) {
+        for (Map.Entry<String, List<String>> entry : specificDates.entrySet()) {
             String dateStr = entry.getKey();
-            String workoutId = entry.getValue();
-            if (workoutId == null || workoutId.isEmpty()) {
-                continue;
-            }
-
-            boolean workoutExists = workouts.stream().anyMatch(w -> w.id.equals(workoutId));
-            if (!workoutExists) {
-                Log.d("CalendarActivity", "Пропущен некорректный ID тренировки " + workoutId + " в конкретных датах");
-                continue;
-            }
-
+            List<String> workoutIds = entry.getValue();
+            if (workoutIds == null || workoutIds.isEmpty()) continue;
             try {
                 LocalDate date = LocalDate.parse(dateStr);
                 if (!date.isBefore(today)) {
-                    for (Workout workout : workouts) {
-                        if (workout.id.equals(workoutId)) {
-                            workout.addDate(dateStr);
-                            break;
-                        }
+                    for (String workoutId : workoutIds) {
+                        workouts.stream()
+                                .filter(w -> w.id.equals(workoutId))
+                                .findFirst()
+                                .ifPresent(workout -> workout.addDate(dateStr));
                     }
                 }
             } catch (Exception e) {
-                Log.e("CalendarActivity", "Ошибка разбора даты в syncWorkoutDates: " + dateStr, e);
+                Log.e("MainActivity", "Ошибка разбора даты: " + dateStr, e);
             }
         }
 
@@ -404,30 +470,21 @@ public class CalendarActivity extends AppCompatActivity {
             DayOfWeek dayOfWeek = entry.getKey();
             String workoutId = entry.getValue();
             if (workoutId == null || workoutId.isEmpty()) continue;
-
-            boolean workoutExists = workouts.stream().anyMatch(w -> w.id.equals(workoutId));
-            if (!workoutExists) {
-                Log.d("CalendarActivity", "Пропущен некорректный ID тренировки " + workoutId + " в еженедельном расписании");
-                continue;
-            }
-
             LocalDate currentDate = today.with(TemporalAdjusters.nextOrSame(dayOfWeek));
             while (!currentDate.isAfter(endDate)) {
                 String dateStr = currentDate.format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE);
-                if (!specificDates.containsKey(dateStr)) {
-                    for (Workout workout : workouts) {
-                        if (workout.id.equals(workoutId)) {
-                            workout.addDate(dateStr);
-                            break;
-                        }
-                    }
+                List<String> specificWorkoutIds = specificDates.getOrDefault(dateStr, new ArrayList<>());
+                if (!specificWorkoutIds.contains(workoutId)) {
+                    workouts.stream()
+                            .filter(w -> w.id.equals(workoutId))
+                            .findFirst()
+                            .ifPresent(workout -> workout.addDate(dateStr));
                 }
                 currentDate = currentDate.plusWeeks(1);
             }
         }
-
         saveWorkouts();
-        Log.d("CalendarActivity", "Синхронизированы тренировки: " + workouts.size() + " с датами.");
+        Log.d("MainActivity", "Синхронизированы даты тренировок");
     }
 
     private List<Workout> loadWorkouts() {
@@ -468,14 +525,17 @@ public class CalendarActivity extends AppCompatActivity {
         try {
             SharedPreferences.Editor editor = sharedPreferences.edit();
             JSONObject json = new JSONObject();
-            for (Map.Entry<String, String> entry : specificDates.entrySet()) {
-                json.put(entry.getKey(), entry.getValue());
+            for (Map.Entry<String, List<String>> entry : specificDates.entrySet()) {
+                if (!entry.getValue().isEmpty()) { // Save only non-empty lists
+                    JSONArray workoutIds = new JSONArray(entry.getValue());
+                    json.put(entry.getKey(), workoutIds);
+                }
             }
             editor.putString(SPECIFIC_DATES_KEY, json.toString());
             editor.apply();
-            Log.d("CalendarActivity", "Сохранены конкретные даты: " + json.toString());
+            Log.d("MainActivity", "Сохранены конкретные даты: " + json.toString());
         } catch (JSONException e) {
-            Log.e("CalendarActivity", "Ошибка сохранения конкретных дат: " + e.getMessage(), e);
+            Log.e("MainActivity", "Ошибка сохранения дат: " + e.getMessage(), e);
         }
     }
 
@@ -488,12 +548,16 @@ public class CalendarActivity extends AppCompatActivity {
                 Iterator<String> keys = json.keys();
                 while (keys.hasNext()) {
                     String key = keys.next();
-                    String workoutId = json.getString(key);
-                    specificDates.put(key, workoutId);
+                    JSONArray workoutIdsJson = json.getJSONArray(key);
+                    List<String> workoutIds = new ArrayList<>();
+                    for (int i = 0; i < workoutIdsJson.length(); i++) {
+                        workoutIds.add(workoutIdsJson.getString(i));
+                    }
+                    specificDates.put(key, workoutIds);
                 }
-                Log.d("CalendarActivity", "Загружены конкретные даты: " + specificDates.size());
+                Log.d("MainActivity", "Загружены конкретные даты: " + specificDates.size());
             } catch (JSONException e) {
-                Log.e("CalendarActivity", "Ошибка загрузки конкретных дат: " + e.getMessage(), e);
+                Log.e("MainActivity", "Ошибка загрузки дат: " + e.getMessage(), e);
             }
         }
     }
@@ -631,6 +695,8 @@ public class CalendarActivity extends AppCompatActivity {
             });
         }
     }
+
+
 
     private void hideSystemUI() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {

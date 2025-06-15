@@ -59,17 +59,19 @@
         android:layout_below="@id/description"
         android:layout_centerHorizontal="true"
         android:layout_marginTop="50dp"
-        android:background="@drawable/default_profile" />
+        android:background="@drawable/default_profile"
+        android:scaleType="centerCrop"
+        android:clipToOutline="true" />
 
     <RelativeLayout
         android:id="@+id/upload_image"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_height="50dp"
         android:layout_below="@id/image_profile"
         android:layout_centerHorizontal="true"
-        android:layout_marginTop="50dp"
-        android:background="@drawable/enter_btn">
-
+        android:layout_marginTop="55dp"
+        android:background="@drawable/enter_btn"
+        android:visibility="visible">
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -77,12 +79,48 @@
             android:paddingTop="10dp"
             android:paddingEnd="20dp"
             android:paddingBottom="10dp"
-            android:text="загрузить изображение"
+            android:text="Загрузить изображение"
             android:textColor="#FFFFFF"
             android:textSize="20sp"
             android:textStyle="bold" />
     </RelativeLayout>
+
+    <RelativeLayout
+        android:id="@+id/edit"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/image_profile"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="50dp"
+        android:layout_marginStart="100dp"
+        android:layout_marginEnd="100dp"
+        android:visibility="gone">
+
+        <ImageView
+            android:id="@+id/delete_image"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:layout_alignParentEnd="true"
+            android:background="@drawable/delete_image" />
+
+        <TextView
+            android:id="@+id/edit_btn"
+            android:layout_width="wrap_content"
+            android:layout_height="50dp"
+            android:paddingStart="20dp"
+            android:layout_centerVertical="true"
+            android:paddingTop="10dp"
+            android:paddingEnd="20dp"
+            android:paddingBottom="10dp"
+            android:text="Изменить"
+            android:background="@drawable/enter_btn"
+            android:textColor="#FFFFFF"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+    </RelativeLayout>
+
     <View
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
+
 </RelativeLayout>
