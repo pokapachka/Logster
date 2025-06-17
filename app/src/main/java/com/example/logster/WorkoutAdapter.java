@@ -9,9 +9,10 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.stream.Collectors;
 
 public class WorkoutAdapter extends RecyclerView.Adapter<WorkoutAdapter.WorkoutViewHolder> {
     private List<Workout> workouts;
@@ -33,30 +34,29 @@ public class WorkoutAdapter extends RecyclerView.Adapter<WorkoutAdapter.WorkoutV
     @Override
     public void onBindViewHolder(@NonNull WorkoutViewHolder holder, int position) {
         Workout workout = workouts.get(position);
-        Log.d("WorkoutAdapter", "Binding workout at position: " + position + ", name: " + workout.name);
+        Log.d("WorkoutAdapter", "Binding workout at position: " + position + ", name: " + workout.name + ", id: " + workout.id);
+
+        // Устанавливаем название тренировки
         holder.workoutName.setText(workout.name);
         holder.workoutName.setVisibility(View.VISIBLE);
-        holder.workoutDay.setText(activity.getNearestDay(workout.id, workout.dates));
+
+        // Получаем дни недели для тренировки
+        String daysText = activity.getAllWorkoutDays(workout.id, workout.dates);
+        holder.workoutDay.setText(daysText.isEmpty() ? "Не выбрано" : daysText);
         holder.workoutDay.setVisibility(View.VISIBLE);
+        Log.d("WorkoutAdapter", "Workout: " + workout.name + ", days: " + daysText);
 
-        // Подсчёт тренировок до конца недели
-        LocalDate today = LocalDate.now();
-        LocalDate endOfWeek = today.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
-        long weekWorkoutCount = workout.dates.stream()
-                .filter(date -> {
-                    try {
-                        LocalDate parsedDate = LocalDate.parse(date);
-                        return parsedDate != null && !parsedDate.isBefore(today) && !parsedDate.isAfter(endOfWeek);
-                    } catch (Exception e) {
-                        Log.e("WorkoutAdapter", "Ошибка разбора даты: " + date, e);
-                        return false;
-                    }
-                })
-                .count();
-        holder.workoutCount.setText(String.valueOf(weekWorkoutCount));
+        // Подсчёт завершённых тренировок + 1 для следующей
+        long completedCount = workout.completedDates.size() + 1; // Следующая тренировка
+        holder.workoutCount.setText(String.valueOf(completedCount));
         holder.workoutCount.setVisibility(View.VISIBLE);
+        Log.d("WorkoutAdapter", "Workout: " + workout.name + ", completed count: " + completedCount);
 
-        holder.itemView.setOnClickListener(v -> activity.editWorkout(workout.name));
+        // Обработчик клика для редактирования тренировки
+        holder.itemView.setOnClickListener(v -> {
+            activity.editWorkout(workout.name);
+            Log.d("WorkoutAdapter", "Clicked workout: " + workout.name);
+        });
     }
 
     @Override
@@ -83,6 +83,7 @@ public class WorkoutAdapter extends RecyclerView.Adapter<WorkoutAdapter.WorkoutV
             workoutName = itemView.findViewById(R.id.workout_name);
             workoutDay = itemView.findViewById(R.id.workout_day);
             workoutCount = itemView.findViewById(R.id.workout_count);
+            Log.d("WorkoutAdapter", "ViewHolder initialized");
         }
     }
 }

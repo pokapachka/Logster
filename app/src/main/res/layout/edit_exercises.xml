@@ -50,7 +50,7 @@
         android:id="@+id/description"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="помечайте флажком при выполнении сета"
+        android:text="добавляйте подходы к упражнению"
         android:textColor="#FFFFFF"
         android:textSize="15sp"
         android:layout_marginStart="15dp"
@@ -98,7 +98,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Добавить сет"
+                    android:text="Добавить подход"
                     android:textSize="20sp"
                     android:textStyle="bold"
                     android:textColor="#FFFFFF"

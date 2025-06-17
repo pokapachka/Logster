@@ -45,14 +45,18 @@ import org.json.JSONObject;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
+import java.time.format.TextStyle;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -87,6 +91,7 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
     private static final String FOLDERS_KEY = "folders";
     private static final String WEEKLY_SCHEDULE_KEY = "weekly_schedule";
     private static final String SPECIFIC_DATES_KEY = "specific_dates";
+    private String selectedDate;
     private ExercisesAdapter exercisesAdapter;
     public List<ExercisesAdapter.Exercise> getSelectedExercises() {
         if (selectedExercises == null) {
@@ -118,23 +123,9 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
         DAY_OF_WEEK_MAP.put("ВОСКРЕСЕНЬЕ", DayOfWeek.SUNDAY);
     }
 
-    private void checkAndShowSplashScreen() {
-        SharedPreferences prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE);
-        boolean isFirstLaunch = prefs.getBoolean("isFirstLaunch", true);
-
-        // Если это первый запуск (или приложение полностью закрыто), показываем SplashActivity
-        if (isFirstLaunch && !isTaskRoot()) {
-            Intent intent = new Intent(this, SplashActivity.class);
-            startActivity(intent);
-            finish(); // Закрываем MainActivity, чтобы SplashActivity взяла управление
-        }
-    }
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-
         super.onCreate(savedInstanceState);
-        checkAndShowSplashScreen();
         setContentView(R.layout.activity_main);
 
         // Initialize navigation and other components
@@ -613,14 +604,15 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
     private void handleEditWorkoutIntent(Intent intent) {
         if (intent != null && intent.hasExtra("edit_workout")) {
             String workoutName = intent.getStringExtra("edit_workout");
+            selectedDate = LocalDate.now().format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE); // Всегда текущая дата
+            Log.d("MainActivity", "handleEditWorkoutIntent: workoutName=" + workoutName + ", selectedDate=" + selectedDate);
             if (workoutName != null && !workoutName.isEmpty()) {
-                // Delay to ensure UI is ready
                 new Handler(Looper.getMainLooper()).post(() -> {
                     editWorkout(workoutName);
-                    Log.d("MainActivity", "Обработка edit_workout: " + workoutName);
+                    Log.d("MainActivity", "Обработка edit_workout: " + workoutName + ", дата: " + selectedDate);
                 });
             } else {
-                Log.w("MainActivity", "Пустое имя тренировки в edit_workout extra");
+                Log.w("MainActivity", "Пустое имя тренировки в extra edit_workout");
             }
         }
     }
@@ -846,26 +838,31 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
         }
     }
 
-    public String getNearestDay(String workoutId, List<String> dates) {
-        LocalDate today = LocalDate.now();
-        LocalDate nearestDate = null;
-        long minDaysAhead = Long.MAX_VALUE;
+    public String getAllWorkoutDays(String workoutId, List<String> dates) {
+        java.util.Set<String> workoutDays = new java.util.HashSet<>();
 
-        for (String dateStr : dates) {
-            try {
-                LocalDate date = LocalDate.parse(dateStr);
-                long daysAhead = java.time.temporal.ChronoUnit.DAYS.between(today, date);
-                if (daysAhead >= 0 && daysAhead < minDaysAhead) {
-                    minDaysAhead = daysAhead;
-                    nearestDate = date;
-                }
-            } catch (Exception e) {
-                Log.e("MainActivity", "Ошибка разбора даты: " + dateStr, e);
+        // Собираем дни недели из weeklySchedule
+        for (Map.Entry<DayOfWeek, String> entry : weeklySchedule.entrySet()) {
+            if (entry.getValue().equals(workoutId)) {
+                String dayName = entry.getKey().getDisplayName(java.time.format.TextStyle.FULL, new Locale("ru"))
+                        .substring(0, 1).toUpperCase() +
+                        entry.getKey().getDisplayName(java.time.format.TextStyle.FULL, new Locale("ru")).substring(1).toLowerCase();
+                workoutDays.add(dayName);
             }
         }
-        return nearestDate != null ?
-                nearestDate.getDayOfWeek().getDisplayName(java.time.format.TextStyle.FULL, new Locale("ru")).toLowerCase() :
-                "Не выбрано";
+
+        // Форматируем дни недели в строку
+        List<String> dayNames = workoutDays.stream()
+                .sorted((d1, d2) -> {
+                    DayOfWeek dow1 = DAY_OF_WEEK_MAP.get(d1.toUpperCase());
+                    DayOfWeek dow2 = DAY_OF_WEEK_MAP.get(d2.toUpperCase());
+                    return dow1.getValue() - dow2.getValue();
+                })
+                .collect(Collectors.toList());
+
+        String result = String.join(", ", dayNames);
+        Log.d("MainActivity", "getAllWorkoutDays для тренировки ID " + workoutId + ": " + result);
+        return result.isEmpty() ? "Не выбрано" : result;
     }
 
     public void saveWorkouts() {
@@ -1008,6 +1005,23 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
             } catch (JSONException e) {
                 Log.e("MainActivity", "Ошибка загрузки расписания: " + e.getMessage(), e);
             }
+        } else {
+            // Миграция для старых данных
+            for (Workout workout : workouts) {
+                java.util.Set<DayOfWeek> days = new java.util.HashSet<>();
+                for (String dateStr : workout.dates) {
+                    try {
+                        LocalDate date = LocalDate.parse(dateStr);
+                        days.add(date.getDayOfWeek());
+                    } catch (Exception e) {
+                        Log.e("MainActivity", "Ошибка миграции даты: " + dateStr, e);
+                    }
+                }
+                for (DayOfWeek day : days) {
+                    weeklySchedule.put(day, workout.id);
+                }
+            }
+            saveWeeklySchedule();
         }
     }
 
@@ -1016,10 +1030,8 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
             SharedPreferences.Editor editor = sharedPreferences.edit();
             JSONObject json = new JSONObject();
             for (Map.Entry<String, List<String>> entry : specificDates.entrySet()) {
-                if (!entry.getValue().isEmpty()) { // Save only non-empty lists
-                    JSONArray workoutIds = new JSONArray(entry.getValue());
-                    json.put(entry.getKey(), workoutIds);
-                }
+                JSONArray workoutIds = new JSONArray(entry.getValue());
+                json.put(entry.getKey(), workoutIds);
             }
             editor.putString(SPECIFIC_DATES_KEY, json.toString());
             editor.apply();
@@ -1063,12 +1075,14 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
     private void syncWorkoutDates() {
         LocalDate today = LocalDate.now();
         LocalDate endDate = today.plusYears(1);
-        for (Workout workout : workouts) workout.dates.clear();
+        for (Workout workout : workouts) {
+            workout.dates.clear();
+        }
 
+        // Добавляем даты из specificDates
         for (Map.Entry<String, List<String>> entry : specificDates.entrySet()) {
             String dateStr = entry.getKey();
             List<String> workoutIds = entry.getValue();
-            if (workoutIds == null || workoutIds.isEmpty()) continue;
             try {
                 LocalDate date = LocalDate.parse(dateStr);
                 if (!date.isBefore(today)) {
@@ -1084,6 +1098,7 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
             }
         }
 
+        // Добавляем еженедельные даты
         for (Map.Entry<DayOfWeek, String> entry : weeklySchedule.entrySet()) {
             DayOfWeek dayOfWeek = entry.getKey();
             String workoutId = entry.getValue();
@@ -1091,17 +1106,23 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
             LocalDate currentDate = today.with(TemporalAdjusters.nextOrSame(dayOfWeek));
             while (!currentDate.isAfter(endDate)) {
                 String dateStr = currentDate.format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE);
-                List<String> specificWorkoutIds = specificDates.getOrDefault(dateStr, new ArrayList<>());
-                if (!specificWorkoutIds.contains(workoutId)) {
+                List<String> specificWorkoutIds = specificDates.getOrDefault(dateStr, null);
+                // Добавляем только если дата не переопределена в specificDates или содержит workoutId
+                if (specificWorkoutIds == null || specificWorkoutIds.contains(workoutId)) {
                     workouts.stream()
                             .filter(w -> w.id.equals(workoutId))
                             .findFirst()
                             .ifPresent(workout -> workout.addDate(dateStr));
+                    // Обновляем specificDates только если список пустой
+                    if (specificWorkoutIds == null) {
+                        specificDates.put(dateStr, new ArrayList<>(Collections.singletonList(workoutId)));
+                    }
                 }
                 currentDate = currentDate.plusWeeks(1);
             }
         }
         saveWorkouts();
+        saveSpecificDates();
         Log.d("MainActivity", "Синхронизированы даты тренировок");
     }
 
@@ -1266,7 +1287,7 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
             if (selectedDays == null) selectedDays = new ArrayList<>();
             else selectedDays.clear();
 
-            Map<String, List<String>> workoutCountByDay = getWorkoutCountByDay();
+            Map<String, Integer> workoutCountByDay = getUniqueWorkoutCountByDay();
             com.google.android.flexbox.FlexboxLayout daysContainer = newView.findViewById(R.id.days_container);
             int[] dayIds = {R.id.day_monday, R.id.day_tuesday, R.id.day_wednesday,
                     R.id.day_thursday, R.id.day_friday, R.id.day_saturday, R.id.day_sunday};
@@ -1278,49 +1299,57 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
                 TextView dayTextView = newView.findViewById(dayIds[i]);
                 TextView countTextView = newView.findViewById(countIds[i]);
                 String dayName = dayNames[i];
-                List<String> workoutsForDay = workoutCountByDay.get(dayName);
+                Integer workoutCount = workoutCountByDay.getOrDefault(dayName, 0);
 
-                int workoutCount = workoutsForDay != null ? workoutsForDay.size() : 0;
                 if (countTextView != null) {
                     countTextView.setText(String.valueOf(workoutCount));
                 }
 
                 if (dayTextView != null) {
-                    dayTextView.setTag(false);
-                    dayTextView.getBackground().setTint(COLOR_UNSELECTED);
+                    dayTextView.setText(dayName);
+                    DayOfWeek dayOfWeek = DAY_OF_WEEK_MAP.get(dayName.toUpperCase());
+                    String existingWorkoutId = weeklySchedule.get(dayOfWeek);
+                    boolean isSelected = existingWorkoutId != null && workouts.stream()
+                            .filter(w -> w.id.equals(existingWorkoutId))
+                            .anyMatch(w -> w.name.equals(selectedWorkoutName));
+                    dayTextView.setTag(Boolean.valueOf(isSelected)); // Explicitly use Boolean object
+                    dayTextView.getBackground().setTint(isSelected ? COLOR_SELECTED : COLOR_UNSELECTED);
 
                     boolean hasWorkouts = workoutCount > 0;
                     if (countTextView != null) {
-                        countTextView.setTag(hasWorkouts);
+                        countTextView.setTag(Boolean.valueOf(hasWorkouts)); // Explicitly use Boolean object
                         countTextView.getBackground().setTint(hasWorkouts ? COLOR_SELECTED : COLOR_UNSELECTED);
                         countTextView.setEnabled(hasWorkouts);
                     }
 
                     dayTextView.setOnClickListener(v -> {
-                        boolean isSelected = (boolean) dayTextView.getTag();
-                        isSelected = !isSelected;
-                        dayTextView.setTag(isSelected);
+                        Boolean currentState = (Boolean) dayTextView.getTag(); // Safe cast to Boolean
+                        if (currentState == null) currentState = false; // Fallback if tag is null
+                        currentState = !currentState;
+                        dayTextView.setTag(Boolean.valueOf(currentState));
 
-                        int startColor = isSelected ? COLOR_UNSELECTED : COLOR_SELECTED;
-                        int endColor = isSelected ? COLOR_SELECTED : COLOR_UNSELECTED;
+                        int startColor = currentState ? COLOR_UNSELECTED : COLOR_SELECTED;
+                        int endColor = currentState ? COLOR_SELECTED : COLOR_UNSELECTED;
                         ValueAnimator colorAnimator = ValueAnimator.ofObject(new ArgbEvaluator(), startColor, endColor);
                         colorAnimator.setDuration(300);
                         colorAnimator.addUpdateListener(animator -> dayTextView.getBackground().setTint((int) animator.getAnimatedValue()));
                         colorAnimator.start();
 
                         String day = dayTextView.getText().toString();
-                        if (isSelected) selectedDays.add(day);
-                        else selectedDays.remove(day);
+                        if (currentState) {
+                            selectedDays.add(day);
+                        } else {
+                            selectedDays.remove(day);
+                        }
                     });
 
                     if (countTextView != null) {
                         countTextView.setOnClickListener(v -> {
-                            if ((boolean) countTextView.getTag()) {
+                            Boolean hasWorkoutsTag = (Boolean) countTextView.getTag(); // Safe cast to Boolean
+                            if (hasWorkoutsTag != null && hasWorkoutsTag) {
+                                List<String> workoutsForDay = getWorkoutsForDay(dayName);
                                 StringBuilder message = new StringBuilder("На этот день записаны " + workoutCount + " тренировок: ");
-                                for (int j = 0; j < workoutsForDay.size(); j++) {
-                                    message.append(workoutsForDay.get(j));
-                                    if (j < workoutsForDay.size() - 1) message.append(", ");
-                                }
+                                message.append(String.join(", ", workoutsForDay));
                                 Toast.makeText(MainActivity.this, message.toString(), Toast.LENGTH_LONG).show();
                             }
                         });
@@ -1336,20 +1365,41 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
                             Toast.makeText(this, "Выберите день", Toast.LENGTH_SHORT).show();
                             return;
                         }
-                        String workoutId = UUID.randomUUID().toString();
-                        if (workouts.stream().anyMatch(w -> w.name.equals(selectedWorkoutName))) {
-                            Toast.makeText(this, "Тренировка с таким именем уже существует", Toast.LENGTH_SHORT).show();
-                            return;
+                        String workoutId = workouts.stream()
+                                .filter(w -> w.name.equals(selectedWorkoutName))
+                                .findFirst()
+                                .map(w -> w.id)
+                                .orElse(UUID.randomUUID().toString());
+
+                        if (workouts.stream().noneMatch(w -> w.id.equals(workoutId))) {
+                            Workout newWorkout = new Workout(workoutId, selectedWorkoutName);
+                            workouts.add(newWorkout);
                         }
+
+                        // Обновляем weeklySchedule
                         for (String dayName : selectedDays) {
                             DayOfWeek dayOfWeek = DAY_OF_WEEK_MAP.get(dayName.toUpperCase());
-                            weeklySchedule.remove(dayOfWeek);
-                            weeklySchedule.put(dayOfWeek, workoutId);
+                            if (dayOfWeek != null) {
+                                weeklySchedule.put(dayOfWeek, workoutId);
+                                Log.d("MainActivity", "Добавлен день " + dayName + " в weeklySchedule для тренировки " + workoutId);
+                            }
                         }
-                        saveWeeklySchedule();
-                        Workout newWorkout = new Workout(workoutId, selectedWorkoutName);
-                        workouts.add(newWorkout);
+
+                        // Удаляем тренировку из weeklySchedule для дней, которые не выбраны
+                        for (String dayName : dayNames) {
+                            if (!selectedDays.contains(dayName)) {
+                                DayOfWeek dayOfWeek = DAY_OF_WEEK_MAP.get(dayName.toUpperCase());
+                                String currentWorkoutId = weeklySchedule.get(dayOfWeek);
+                                if (currentWorkoutId != null && currentWorkoutId.equals(workoutId)) {
+                                    weeklySchedule.remove(dayOfWeek);
+                                    Log.d("MainActivity", "Удалён день " + dayName + " из weeklySchedule для тренировки " + workoutId);
+                                }
+                            }
+                        }
+
+                        // Сохраняем данные
                         saveWorkouts();
+                        saveWeeklySchedule();
                         syncWorkoutDates();
                         updateMainItems();
                         combinedAdapter.updateData(folders, workouts, bodyMetrics, currentFolderName);
@@ -1383,17 +1433,15 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
             com.example.logster.AddBodyMetric.setupNumberPicker(
                     mainScrollView, mainValueList, mainTopLine,
                     mainBottomLine, centerArrow, data);
-        }     else if (layoutId == R.layout.edit_workout) {
+        }     if (layoutId == R.layout.edit_workout) {
             TextView titleTextView = newView.findViewById(R.id.title);
             RecyclerView selectedExercisesRecyclerView = newView.findViewById(R.id.selected_exercises_list);
             View addExercisesBtn = newView.findViewById(R.id.addExercises);
             FrameLayout closeBtn = newView.findViewById(R.id.close);
+            View logBtn = newView.findViewById(R.id.log_btn); // Добавляем кнопку "записать"
 
             if (titleTextView != null && data != null) {
                 titleTextView.setText(data);
-                Log.d("MainActivity", "Set title: " + data);
-            } else {
-                Log.w("MainActivity", "titleTextView или data не заданы в edit_workout");
             }
 
             if (selectedExercisesRecyclerView != null) {
@@ -1402,36 +1450,31 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
                 selectedExercisesRecyclerView.setAdapter(selectedExercisesAdapter);
                 selectedExercisesRecyclerView.setVisibility(selectedExercises.isEmpty() ? View.GONE : View.VISIBLE);
 
-                // Подключение ExerciseDragHelper для перетаскивания
                 ExerciseDragHelper dragHelper = new ExerciseDragHelper(selectedExercisesAdapter,
                         selectedExercises, this, data);
                 ItemTouchHelper itemTouchHelper = new ItemTouchHelper(dragHelper);
                 itemTouchHelper.attachToRecyclerView(selectedExercisesRecyclerView);
-                Log.d("MainActivity", "ExerciseDragHelper подключён к selected_exercises_list");
 
-                // Добавляем анимацию для плавного перетаскивания
                 DefaultItemAnimator animator = new DefaultItemAnimator();
                 animator.setMoveDuration(300);
                 animator.setRemoveDuration(200);
                 animator.setAddDuration(200);
                 animator.setChangeDuration(300);
                 selectedExercisesRecyclerView.setItemAnimator(animator);
-
-                Log.d("MainActivity", "Обновлены выбранные упражнения в edit_workout: " + selectedExercises.size());
-            } else {
-                Log.e("MainActivity", "selected_exercises_list RecyclerView не найден");
             }
 
             if (addExercisesBtn != null) {
                 addExercisesBtn.setOnClickListener(v -> openAddExercises(v));
-            } else {
-                Log.w("MainActivity", "addExercisesBtn не найдено в edit_workout");
             }
 
             if (closeBtn != null) {
                 closeBtn.setOnClickListener(v -> backSheetEditWorkout(v));
+            }
+
+            if (logBtn != null) {
+                logBtn.setOnClickListener(v -> logWorkout(v)); // Привязываем обработчик
             } else {
-                Log.w("MainActivity", "closeBtn не найден в edit_workout");
+                Log.w("MainActivity", "log_btn не найден в edit_workout");
             }
         } else if (layoutId == R.layout.add_exercises) {
             RecyclerView exerciseRecyclerView = newView.findViewById(R.id.exercise_list);
@@ -1790,5 +1833,154 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
                 R.anim.slide_in_left
         );
         Log.d("MainActivity", "Returned to add_exercises from exercise_description");
+    }
+
+    private void logWorkout(View view) {
+        if (selectedWorkoutName == null) {
+            Toast.makeText(this, "Тренировка не выбрана", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        Workout workout = workouts.stream()
+                .filter(w -> w.name.equals(selectedWorkoutName))
+                .findFirst()
+                .orElse(null);
+        if (workout == null) {
+            Toast.makeText(this, "Тренировка не найдена", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        selectedDate = LocalDate.now().format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE);
+        Log.d("MainActivity", "Запись тренировки на дату: " + selectedDate);
+
+        List<CompletedExercise> completedExercises = new ArrayList<>();
+        for (ExercisesAdapter.Exercise exercise : selectedExercises) {
+            List<Set> sets = new ArrayList<>(exercise.getSets());
+            completedExercises.add(new CompletedExercise(exercise.getId(), sets));
+        }
+
+        workout.addCompletedDate(selectedDate, completedExercises);
+        if (!workout.dates.contains(selectedDate)) {
+            List<String> workoutIds = specificDates.getOrDefault(selectedDate, new ArrayList<>());
+            if (!workoutIds.contains(workout.id)) {
+                workoutIds.add(workout.id);
+                specificDates.put(selectedDate, workoutIds);
+            }
+            workout.addDate(selectedDate);
+        }
+
+        saveWorkouts();
+        saveSpecificDates();
+        syncWorkoutDates();
+
+        Toast.makeText(this, "Тренировка записана", Toast.LENGTH_SHORT).show();
+
+        if (widgetSheet != null && widgetSheet.isShowing()) {
+            widgetSheet.hide(() -> Log.d("MainActivity", "Лист скрыт после записи тренировки"));
+        }
+
+        Log.d("MainActivity", "Тренировка записана: " + selectedWorkoutName + " на дату " + selectedDate);
+    }
+    private Map<String, Integer> getUniqueWorkoutCountByDay() {
+        Map<String, java.util.Set<String>> workoutNamesByDay = new HashMap<>();
+        String[] days = {"Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"};
+        for (String day : days) {
+            workoutNamesByDay.put(day, new java.util.HashSet<>());
+        }
+
+        LocalDate today = LocalDate.now();
+
+        // Weekly schedule
+        for (Map.Entry<DayOfWeek, String> entry : weeklySchedule.entrySet()) {
+            DayOfWeek dayOfWeek = entry.getKey();
+            String workoutId = entry.getValue();
+            if (dayOfWeek == null || workoutId == null || workoutId.isEmpty()) continue;
+            String dayName = dayOfWeek.getDisplayName(TextStyle.FULL, new Locale("ru"))
+                    .substring(0, 1).toUpperCase() +
+                    dayOfWeek.getDisplayName(TextStyle.FULL, new Locale("ru")).substring(1).toLowerCase();
+            workouts.stream()
+                    .filter(w -> w.id.equals(workoutId))
+                    .findFirst()
+                    .ifPresent(workout -> workoutNamesByDay.get(dayName).add(workout.name));
+        }
+
+        // Specific dates
+        for (Map.Entry<String, List<String>> entry : specificDates.entrySet()) {
+            String dateStr = entry.getKey();
+            List<String> workoutIds = entry.getValue();
+            if (dateStr == null || workoutIds == null || workoutIds.isEmpty()) continue;
+            try {
+                LocalDate date = LocalDate.parse(dateStr);
+                if (!date.isBefore(today)) {
+                    String dayName = date.getDayOfWeek().getDisplayName(TextStyle.FULL, new Locale("ru"))
+                            .substring(0, 1).toUpperCase() +
+                            date.getDayOfWeek().getDisplayName(TextStyle.FULL, new Locale("ru")).substring(1).toLowerCase();
+                    for (String workoutId : workoutIds) {
+                        workouts.stream()
+                                .filter(w -> w.id.equals(workoutId))
+                                .findFirst()
+                                .ifPresent(workout -> workoutNamesByDay.get(dayName).add(workout.name));
+                    }
+                }
+            } catch (Exception e) {
+                Log.e("MainActivity", "Ошибка разбора даты: " + dateStr, e);
+            }
+        }
+
+        // Преобразуем в количество уникальных тренировок
+        Map<String, Integer> workoutCountByDay = new HashMap<>();
+        for (String day : days) {
+            workoutCountByDay.put(day, workoutNamesByDay.get(day).size());
+        }
+
+        return workoutCountByDay;
+    }
+
+    private List<String> getWorkoutsForDay(String dayName) {
+        java.util.Set<String> workoutNames = new java.util.HashSet<>();
+
+        // Map for mapping DayOfWeek to Russian day names (Понедельник, Вторник, ...)
+        Map<DayOfWeek, String> dayNames = Map.of(
+                DayOfWeek.MONDAY, "Понедельник",
+                DayOfWeek.TUESDAY, "Вторник",
+                DayOfWeek.WEDNESDAY, "Среда",
+                DayOfWeek.THURSDAY, "Четверг",
+                DayOfWeek.FRIDAY, "Пятница",
+                DayOfWeek.SATURDAY, "Суббота",
+                DayOfWeek.SUNDAY, "Воскресенье"
+        );
+
+        // Check weekly schedule
+        DayOfWeek targetDay = DAY_OF_WEEK_MAP.get(dayName.toUpperCase());
+        if (targetDay != null) {
+            String workoutId = weeklySchedule.get(targetDay);
+            if (workoutId != null) {
+                findWorkoutName(workoutId).ifPresent(workoutNames::add);
+            }
+        }
+
+        // Check specific dates
+        for (Map.Entry<String, List<String>> entry : specificDates.entrySet()) {
+            try {
+                LocalDate date = LocalDate.parse(entry.getKey());
+                String formattedDay = dayNames.get(date.getDayOfWeek());
+                if (dayName.equals(formattedDay)) {
+                    for (String workoutId : entry.getValue()) {
+                        findWorkoutName(workoutId).ifPresent(workoutNames::add);
+                    }
+                }
+            } catch (java.time.format.DateTimeParseException e) {
+                Log.e("MainActivity", "Ошибка разбора даты: " + entry.getKey(), e);
+            }
+        }
+
+        return new ArrayList<>(workoutNames);
+    }
+
+    // Helper method to find workout name by ID
+    private Optional<String> findWorkoutName(String workoutId) {
+        return workouts.stream()
+                .filter(w -> w.id.equals(workoutId))
+                .map(w -> w.name)
+                .findFirst();
     }
 }

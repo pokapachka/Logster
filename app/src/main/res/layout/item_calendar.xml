@@ -32,4 +32,22 @@
         android:textSize="15sp"
         android:textStyle="bold"
         android:layout_marginStart="60dp"/>
+
+    <TextView
+        android:id="@+id/done"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/sets_et"
+        android:text="выполнена"
+        android:textColor="#FFFFFF"
+        android:textSize="15sp"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
+        android:layout_alignParentEnd="true"
+        android:layout_centerVertical="true"
+        android:textStyle="bold"
+        android:layout_marginEnd="10dp"
+        android:visibility="gone"/>
 </RelativeLayout>

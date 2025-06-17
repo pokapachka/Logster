@@ -1,5 +1,7 @@
 package com.example.logster;
 
+import android.util.Log;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -17,6 +19,7 @@ public class Workout {
     public List<Integer> exerciseIds;
     public Map<Integer, List<Set>> exerciseSets;
     public List<String> dates;
+    public Map<String, List<CompletedExercise>> completedDates; // New field for completed workouts
 
     public Workout(String id, String name) {
         this.id = id != null ? id : UUID.randomUUID().toString();
@@ -24,10 +27,15 @@ public class Workout {
         this.exerciseIds = new ArrayList<>();
         this.exerciseSets = new HashMap<>();
         this.dates = new ArrayList<>();
+        this.completedDates = new HashMap<>(); // Initialize the new field
     }
 
-    public void addDate(String date) {
-        if (!dates.contains(date)) dates.add(date);
+    public void addCompletedDate(String date, List<CompletedExercise> exercises) {
+        if (date == null || date.isEmpty()) {
+            Log.w("Workout", "Попытка добавить завершенную тренировку с null или пустой датой, игнорируется");
+            return;
+        }
+        completedDates.put(date, new ArrayList<>(exercises));
     }
 
     public JSONObject toJson() throws JSONException {
@@ -53,6 +61,18 @@ public class Workout {
             datesArray.put(date);
         }
         json.put("dates", datesArray);
+
+        // Serialize completedDates
+        JSONObject completedDatesJson = new JSONObject();
+        for (Map.Entry<String, List<CompletedExercise>> entry : completedDates.entrySet()) {
+            JSONArray exercisesArray = new JSONArray();
+            for (CompletedExercise exercise : entry.getValue()) {
+                exercisesArray.put(exercise.toJson());
+            }
+            completedDatesJson.put(entry.getKey(), exercisesArray);
+        }
+        json.put("completedDates", completedDatesJson);
+
         return json;
     }
 
@@ -79,6 +99,26 @@ public class Workout {
         for (int i = 0; i < datesArray.length(); i++) {
             workout.dates.add(datesArray.getString(i));
         }
+
+        // Deserialize completedDates
+        JSONObject completedDatesJson = json.optJSONObject("completedDates");
+        if (completedDatesJson != null) {
+            for (Iterator<String> it = completedDatesJson.keys(); it.hasNext(); ) {
+                String date = it.next();
+                JSONArray exercisesArray = completedDatesJson.getJSONArray(date);
+                List<CompletedExercise> exercises = new ArrayList<>();
+                for (int i = 0; i < exercisesArray.length(); i++) {
+                    exercises.add(CompletedExercise.fromJson(exercisesArray.getJSONObject(i)));
+                }
+                workout.completedDates.put(date, exercises);
+            }
+        }
+
         return workout;
+    }
+    public void addDate(String date) {
+        if (!dates.contains(date)) {
+            dates.add(date);
+        }
     }
 }
