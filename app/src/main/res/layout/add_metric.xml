@@ -15,7 +15,7 @@
 
     <!-- Кнопка назад -->
     <FrameLayout
-        android:id="@+id/close"
+        android:id="@+id/back"
         android:layout_width="30dp"
         android:layout_height="30dp"
         android:layout_marginTop="35dp"
@@ -33,7 +33,7 @@
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_below="@id/close"
+        android:layout_below="@id/back"
         android:layout_marginTop="20dp">
 
         <RelativeLayout

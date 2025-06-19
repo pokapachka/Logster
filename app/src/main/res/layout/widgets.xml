@@ -111,7 +111,7 @@
         android:layout_marginTop="0dp"
         android:layout_below="@id/addtrenings"
         android:layout_marginStart="10dp"
-        android:onClick="addWorkout"
+        android:onClick="addPersonalWorkout"
         android:layout_marginEnd="15dp">
 
         <ImageView

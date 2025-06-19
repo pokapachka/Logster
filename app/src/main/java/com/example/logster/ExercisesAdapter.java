@@ -10,9 +10,11 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class ExercisesAdapter extends RecyclerView.Adapter<ExercisesAdapter.ExerciseViewHolder> {
-    private List<Exercise> exercises;
+    private List<Exercise> exercises; // Отображаемый список
+    private final List<Exercise> fullExercises; // Полный список для фильтрации
     private final OnExerciseClickListener listener;
     private final MainActivity mainActivity;
 
@@ -21,7 +23,8 @@ public class ExercisesAdapter extends RecyclerView.Adapter<ExercisesAdapter.Exer
     }
 
     public ExercisesAdapter(List<Exercise> exercises, OnExerciseClickListener listener, MainActivity mainActivity) {
-        this.exercises = exercises != null ? exercises : new ArrayList<>();
+        this.exercises = new ArrayList<>(exercises != null ? exercises : new ArrayList<>());
+        this.fullExercises = new ArrayList<>(this.exercises); // Копируем полный список
         this.listener = listener;
         this.mainActivity = mainActivity;
         Log.d("ExercisesAdapter", "Initialized with " + this.exercises.size() + " exercises");
@@ -40,7 +43,6 @@ public class ExercisesAdapter extends RecyclerView.Adapter<ExercisesAdapter.Exer
         holder.exerciseName.setText(exercise.getName());
         holder.checkbox.setSelected(exercise.isSelected());
 
-        // Обработка клика по чекбоксу (выбор/снятие выбора упражнения)
         holder.checkbox.setOnClickListener(v -> {
             if (listener != null) {
                 listener.onExerciseClick(v, exercise);
@@ -48,7 +50,6 @@ public class ExercisesAdapter extends RecyclerView.Adapter<ExercisesAdapter.Exer
             }
         });
 
-        // Обработка клика по всему элементу (открытие описания)
         holder.itemView.setOnClickListener(v -> {
             if (v.getId() != R.id.checkbox && v.getId() != R.id.add_button) {
                 mainActivity.openExerciseDescription(exercise);
@@ -56,7 +57,6 @@ public class ExercisesAdapter extends RecyclerView.Adapter<ExercisesAdapter.Exer
             }
         });
 
-        // Обработка клика по кнопке добавления
         holder.addButton.setOnClickListener(v -> {
             if (listener != null) {
                 listener.onExerciseClick(v, exercise);
@@ -74,8 +74,24 @@ public class ExercisesAdapter extends RecyclerView.Adapter<ExercisesAdapter.Exer
 
     public void updateExercises(List<Exercise> newExercises) {
         this.exercises = new ArrayList<>(newExercises);
+        this.fullExercises.clear();
+        this.fullExercises.addAll(newExercises); // Обновляем полный список
         notifyDataSetChanged();
         Log.d("ExercisesAdapter", "Exercises updated, new size: " + exercises.size());
+    }
+
+    // Метод для фильтрации упражнений
+    public void filterExercises(String query) {
+        if (query == null || query.trim().isEmpty()) {
+            exercises = new ArrayList<>(fullExercises); // Восстанавливаем полный список
+        } else {
+            String lowerQuery = query.toLowerCase();
+            exercises = fullExercises.stream()
+                    .filter(exercise -> exercise.getName().toLowerCase().contains(lowerQuery))
+                    .collect(Collectors.toList());
+        }
+        notifyDataSetChanged();
+        Log.d("ExercisesAdapter", "Filtered exercises, query: " + query + ", result size: " + exercises.size());
     }
 
     public static class Exercise {

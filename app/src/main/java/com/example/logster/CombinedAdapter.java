@@ -48,61 +48,44 @@ public class CombinedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
         this.currentFolderName = currentFolderName;
 
         if (currentFolderName != null) {
-            Folder folder = folders.stream()
+            Folder currentFolder = folders.stream()
                     .filter(f -> f.name.equals(currentFolderName))
                     .findFirst()
                     .orElse(null);
-            if (folder != null) {
-                for (String itemId : folder.itemIds) {
-                    Workout workout = workouts.stream()
+            if (currentFolder != null) {
+                for (String itemId : currentFolder.itemIds) {
+                    workouts.stream()
                             .filter(w -> w.id.equals(itemId))
                             .findFirst()
-                            .orElse(null);
-                    if (workout != null) {
-                        items.add(workout);
-                        Log.d("CombinedAdapter", "Added workout to folder items: " + workout.name + ", id=" + itemId);
-                    } else {
-                        BodyMetric metric = bodyMetrics.stream()
-                                .filter(m -> m.id.equals(itemId))
-                                .findFirst()
-                                .orElse(null);
-                        if (metric != null) {
-                            items.add(metric);
-                            Log.d("CombinedAdapter", "Added metric to folder items: " + metric.type + ", id=" + itemId);
-                        } else {
-                            Log.w("CombinedAdapter", "Item not found for id: " + itemId + " in folder: " + currentFolderName);
-                        }
-                    }
+                            .ifPresent(items::add);
+                    bodyMetrics.stream()
+                            .filter(m -> m.id.equals(itemId))
+                            .findFirst()
+                            .ifPresent(items::add);
                 }
+                Log.d("CombinedAdapter", "Updated items in folder: " + currentFolderName + ", items=" + items.size());
             } else {
                 Log.w("CombinedAdapter", "Folder not found: " + currentFolderName);
             }
         } else {
             items.addAll(folders);
             List<String> folderItemIds = folders.stream()
-                    .flatMap(f -> f.itemIds != null ? f.itemIds.stream() : Stream.empty())
-                    .distinct()
+                    .flatMap(f -> f.itemIds.stream())
                     .collect(Collectors.toList());
             for (Workout workout : workouts) {
                 if (!folderItemIds.contains(workout.id)) {
                     items.add(workout);
-                    Log.d("CombinedAdapter", "Added workout to main items: " + workout.name + ", id=" + workout.id);
-                } else {
-                    Log.d("CombinedAdapter", "Workout in folder, skipped: " + workout.name + ", id=" + workout.id);
                 }
             }
             for (BodyMetric metric : bodyMetrics) {
                 if (!folderItemIds.contains(metric.id)) {
                     items.add(metric);
-                    Log.d("CombinedAdapter", "Added metric to main items: " + metric.type + ", id=" + metric.id);
-                } else {
-                    Log.d("CombinedAdapter", "Metric in folder, skipped: " + metric.type + ", id=" + metric.id);
                 }
             }
+            Log.d("CombinedAdapter", "Updated main items: folders=" + folders.size() + ", workouts=" + workouts.size() + ", metrics=" + bodyMetrics.size());
         }
 
         notifyDataSetChanged();
-        Log.d("CombinedAdapter", "Updated data: folders=" + folders.size() + ", workouts=" + workouts.size() + ", metrics=" + bodyMetrics.size() + ", items=" + items.size());
     }
 
     @Override

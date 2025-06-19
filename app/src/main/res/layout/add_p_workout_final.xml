@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/add_p_workout_final"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/rounded_top"
+    android:fontFamily="sans-serif"
+    android:clipChildren="false"
+    android:clipToPadding="false">
+
+    <!-- Ручка сверху -->
+    <View
+        android:id="@+id/top_line"
+        android:layout_width="80dp"
+        android:layout_height="4dp"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="5dp"
+        android:background="@drawable/handle_background" />
+
+    <!-- Кнопка назад -->
+    <FrameLayout
+        android:id="@+id/close"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:layout_marginTop="35dp"
+        android:layout_marginStart="10dp"
+        android:onClick="backSheetEditWorkout">
+        <ImageView
+            android:id="@+id/btn_plus"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_gravity="center"
+            android:src="@drawable/back"/>
+    </FrameLayout>
+
+    <!-- Кнопка "Создать программу" -->
+    <TextView
+        android:id="@+id/create_program"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentEnd="true"
+        android:paddingStart="20dp"
+        android:paddingTop="15dp"
+        android:paddingEnd="20dp"
+        android:paddingBottom="15dp"
+        android:layout_marginTop="20dp"
+        android:layout_marginEnd="15dp"
+        android:text="Создать программу"
+        android:textColor="@color/black"
+        android:background="@drawable/enter_btn2"
+        android:textSize="15sp"
+        android:textStyle="bold" />
+
+    <!-- ScrollView для прокрутки содержимого -->
+    <ScrollView
+        android:id="@+id/scroll_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/close"
+        android:layout_marginTop="30dp"
+        android:layout_marginBottom="20dp"
+        android:fillViewport="true"
+        android:overScrollMode="never">
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <!-- Заголовок -->
+            <TextView
+                android:id="@+id/title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Программа"
+                android:textSize="30sp"
+                android:textStyle="bold"
+                android:textColor="#FFFFFF"
+                android:layout_marginStart="15dp"
+                android:layout_marginTop="0dp"/>
+
+            <!-- Описание -->
+            <TextView
+                android:id="@+id/description"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Ваша программа тренировок готова. Описание Описание Описание Описание Описание"
+                android:textColor="#FFFFFF"
+                android:textSize="15sp"
+                android:layout_marginStart="15dp"
+                android:layout_marginEnd="15dp"
+                android:layout_marginTop="10dp"
+                android:layout_below="@id/title" />
+
+            <TextView
+                android:id="@+id/target"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Цель: "
+                android:textColor="#FFFFFF"
+                android:textSize="15sp"
+                android:layout_marginStart="15dp"
+                android:layout_below="@id/description"
+                android:layout_marginTop="30dp"/>
+
+            <TextView
+                android:id="@+id/level"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Уровень: "
+                android:textColor="#FFFFFF"
+                android:textSize="15sp"
+                android:layout_marginStart="15dp"
+                android:layout_below="@id/target"
+                android:layout_marginTop="10dp"/>
+
+            <TextView
+                android:id="@+id/days_week"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Дней в неделю: "
+                android:textColor="#FFFFFF"
+                android:textSize="15sp"
+                android:layout_marginStart="15dp"
+                android:layout_below="@id/level"
+                android:layout_marginTop="10dp"/>
+
+            <TextView
+                android:id="@+id/area"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Целевая область: "
+                android:textColor="#FFFFFF"
+                android:textSize="15sp"
+                android:layout_marginStart="15dp"
+                android:layout_below="@id/days_week"
+                android:layout_marginTop="10dp"/>
+
+            <LinearLayout
+                android:id="@+id/content_layout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/area"
+                android:layout_marginTop="30dp"
+                android:orientation="vertical"
+                android:clipChildren="false"
+                android:clipToPadding="false">
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/selected_exercises_list"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="15dp"
+                    android:scrollbars="vertical"
+                    android:nestedScrollingEnabled="false"
+                    android:clipToPadding="false" />
+
+            </LinearLayout>
+
+        </RelativeLayout>
+    </ScrollView>
+
+</RelativeLayout>

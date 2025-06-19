@@ -1,6 +1,10 @@
 package com.example.logster;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.AnimatorSet;
 import android.animation.ArgbEvaluator;
+import android.animation.ObjectAnimator;
 import android.animation.ValueAnimator;
 import android.app.ActivityOptions;
 import android.content.Context;
@@ -11,6 +15,7 @@ import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.LayerDrawable;
+import android.graphics.drawable.TransitionDrawable;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -21,6 +26,8 @@ import android.view.View;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.view.animation.DecelerateInterpolator;
+import android.view.animation.LinearInterpolator;
+import android.view.animation.OvershootInterpolator;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.FrameLayout;
@@ -61,7 +68,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class MainActivity extends AppCompatActivity implements AddWorkout.WorkoutSelectionListener {
+public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSelectionListener {
 
     private Workout currentWorkout;
     private List<ExercisesAdapter.Exercise> selectedExercises;
@@ -93,6 +100,53 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
     private static final String SPECIFIC_DATES_KEY = "specific_dates";
     private String selectedDate;
     private ExercisesAdapter exercisesAdapter;
+    private PersonalWorkoutData personalWorkoutData;
+    public abstract class WorkoutProgramItem {
+        public static final int TYPE_HEADER = 0;
+        public static final int TYPE_EXERCISE = 1;
+
+        public abstract int getViewType();
+    }
+
+    public class DayHeader extends WorkoutProgramItem {
+        private final String dayName;
+        private final String workoutName;
+
+        public DayHeader(String dayName, String workoutName) {
+            this.dayName = dayName;
+            this.workoutName = workoutName;
+        }
+
+        public String getDayName() {
+            return dayName;
+        }
+
+        public String getWorkoutName() {
+            return workoutName;
+        }
+
+        @Override
+        public int getViewType() {
+            return TYPE_HEADER;
+        }
+    }
+
+    public class WorkoutExerciseItem extends WorkoutProgramItem {
+        private final WorkoutProgramGenerator.WorkoutExercise exercise;
+
+        public WorkoutExerciseItem(WorkoutProgramGenerator.WorkoutExercise exercise) {
+            this.exercise = exercise;
+        }
+
+        public WorkoutProgramGenerator.WorkoutExercise getExercise() {
+            return exercise;
+        }
+
+        @Override
+        public int getViewType() {
+            return TYPE_EXERCISE;
+        }
+    }
     public List<ExercisesAdapter.Exercise> getSelectedExercises() {
         if (selectedExercises == null) {
             selectedExercises = new ArrayList<>();
@@ -585,13 +639,13 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
             }
         });
 
-        folders = loadFolders();
         workouts = loadWorkouts();
         bodyMetrics = loadBodyMetrics();
+        folders = loadFolders(); // Загружаем папки после тренировок и метрик
         loadWeeklySchedule();
         loadSpecificDates();
         syncWorkoutDates();
-        updateMainItems();
+        updateMainItems(); // Обновляем mainItems после загрузки всех данных
         combinedAdapter.updateData(folders, workouts, bodyMetrics, currentFolderName);
 
         // Handle edit_workout intent
@@ -829,14 +883,6 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
         }
     }
 
-    public void hideKeyboard() {
-        View currentFocus = getCurrentFocus();
-        if (currentFocus != null) {
-            InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-            imm.hideSoftInputFromWindow(currentFocus.getWindowToken(), 0);
-            currentFocus.clearFocus();
-        }
-    }
 
     public String getAllWorkoutDays(String workoutId, List<String> dates) {
         java.util.Set<String> workoutDays = new java.util.HashSet<>();
@@ -951,28 +997,33 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
                 JSONArray foldersArray = new JSONArray(foldersJson);
                 for (int i = 0; i < foldersArray.length(); i++) {
                     Folder folder = Folder.fromJson(foldersArray.getJSONObject(i));
-// Очистка невалидных itemIds
-                    List<String> validItemIds = new ArrayList<>();
-                    for (String itemId : folder.itemIds) {
-                        boolean exists = workouts.stream().anyMatch(w -> w.id.equals(itemId)) ||
-                                bodyMetrics.stream().anyMatch(m -> m.id.equals(itemId));
-                        if (exists) {
-                            validItemIds.add(itemId);
-                        } else {
-                            Log.w("MainActivity", "Removed invalid itemId: " + itemId + " from folder: " + folder.name);
-                        }
-                    }
-                    folder.itemIds = validItemIds;
-                    if (!loadedFolders.stream().anyMatch(f -> f.name.equals(folder.name))) {
-                        loadedFolders.add(folder);
-                    }
+                    // Сохраняем все itemIds без немедленной очистки
+                    loadedFolders.add(folder);
+                    Log.d("MainActivity", "Loaded folder: " + folder.name + ", itemIds=" + folder.itemIds.size());
                 }
             } catch (JSONException e) {
                 Log.e("MainActivity", "Ошибка загрузки папок: " + e.getMessage(), e);
             }
         }
         this.folders = loadedFolders;
+
+        // Очистка невалидных itemIds после загрузки workouts и bodyMetrics
+        for (Folder folder : loadedFolders) {
+            List<String> validItemIds = new ArrayList<>();
+            for (String itemId : folder.itemIds) {
+                boolean exists = workouts.stream().anyMatch(w -> w.id.equals(itemId)) ||
+                        bodyMetrics.stream().anyMatch(m -> m.id.equals(itemId));
+                if (exists) {
+                    validItemIds.add(itemId);
+                } else {
+                    Log.w("MainActivity", "Removed invalid itemId: " + itemId + " from folder: " + folder.name);
+                }
+            }
+            folder.itemIds = validItemIds;
+        }
+
         saveFolders(); // Сохраняем после очистки
+        Log.d("MainActivity", "Loaded and cleaned folders: " + loadedFolders.size());
         return loadedFolders;
     }
 
@@ -1065,11 +1116,12 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
     }
 
     private void saveItems() {
-        saveFolders();
         saveWorkouts();
         saveBodyMetrics();
+        saveFolders(); // Сохраняем папки после тренировок и метрик
         saveWeeklySchedule();
         saveSpecificDates();
+        Log.d("MainActivity", "Saved all items: workouts=" + workouts.size() + ", bodyMetrics=" + bodyMetrics.size() + ", folders=" + folders.size());
     }
 
     private void syncWorkoutDates() {
@@ -1147,7 +1199,15 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
 
     public void backSheet(View view) {
         hideKeyboard();
-        switchSheet(R.layout.widgets, null, false, 0, 0);
+        if (widgetSheet != null && widgetSheet.isShowing()) {
+            widgetSheet.hide(() -> {
+                widgetSheet = new BottomSheets(this, R.layout.widgets);
+                widgetSheet.show();
+                Log.d("MainActivity", "Back to widgets sheet from backSheet");
+            });
+        } else {
+            Log.w("MainActivity", "widgetSheet is null or not showing in backSheet");
+        }
     }
 
     public void backSheet2(View view) {
@@ -1211,12 +1271,12 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
         widgetSheet.hide(null);
     }
 
-    private int dpToPx(int dp) {
+    protected int dpToPx(int dp) {
         float density = getResources().getDisplayMetrics().density;
         return Math.round(dp * density);
     }
 
-    private void switchSheet(int layoutId, String data, boolean useHorizontalTransition, int exitAnim, int enterAnim) {
+    private void switchSheet(int layoutId, Object data, boolean useHorizontalTransition, int exitAnim, int enterAnim) {
         hideKeyboard();
         View newView = LayoutInflater.from(this).inflate(layoutId, null);
 
@@ -1237,7 +1297,12 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
                             saveFolders();
                             updateMainItems();
                             combinedAdapter.updateData(folders, workouts, bodyMetrics, currentFolderName);
-                            widgetSheet.hide(() -> continueBtn.setEnabled(true));
+                            widgetSheet.hide(() -> {
+                                continueBtn.setEnabled(true);
+                                // Открываем widgets после закрытия
+                                widgetSheet = new BottomSheets(this, R.layout.widgets);
+                                widgetSheet.show();
+                            });
                         } else {
                             Toast.makeText(this, "Папка уже существует", Toast.LENGTH_SHORT).show();
                             continueBtn.setEnabled(true);
@@ -1247,14 +1312,6 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
                         continueBtn.setEnabled(true);
                     }
                 });
-            } else {
-                Log.w("MainActivity", "continueBtn not found in add_folders");
-            }
-
-            if (closeBtn != null) {
-                closeBtn.setOnClickListener(v -> widgetSheet.hide(null));
-            } else {
-                Log.w("MainActivity", "closeBtn not found in add_folders");
             }
         } else if (layoutId == R.layout.add_workout) {
             ScrollView scrollView = newView.findViewById(R.id.trainingScrollView);
@@ -1264,18 +1321,17 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
             ImageView centerArrow = newView.findViewById(R.id.center_arrow);
             TextView workoutNameTextView = newView.findViewById(R.id.workout_name);
             TextView workoutDescriptionTextView = newView.findViewById(R.id.workout_description);
+            View backBtn = newView.findViewById(R.id.back);
 
             if (scrollView != null && trainingList != null) {
                 AddWorkout.setupScrollHighlight(
                         scrollView, trainingList, topLine, bottomLine,
                         centerArrow, workoutNameTextView, workoutDescriptionTextView);
-            } else {
-                Log.w("MainActivity", "ScrollView or trainingList not found in add_workout");
             }
         } else if (layoutId == R.layout.add_workout2) {
             EditText workoutNameEditText = newView.findViewById(R.id.ETworkout_name);
             if (data != null && workoutNameEditText != null) {
-                workoutNameEditText.setText(data);
+                workoutNameEditText.setText((String) data);
             }
             View continueBtn = newView.findViewById(R.id.continue_btn);
             if (continueBtn != null) {
@@ -1417,6 +1473,7 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
             ImageView centerArrow = newView.findViewById(R.id.center_arrow);
             TextView metricNameTextView = newView.findViewById(R.id.workout_name);
             TextView metricDescriptionTextView = newView.findViewById(R.id.workout_description);
+            View backBtn = newView.findViewById(R.id.back);
 
             if (scrollView != null && metricList != null) {
                 com.example.logster.AddBodyMetric.setupMetricSelection(
@@ -1430,20 +1487,21 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
             View mainBottomLine = newView.findViewById(R.id.main_bottom_line);
             ImageView centerArrow = newView.findViewById(R.id.center_arrow);
 
-            com.example.logster.AddBodyMetric.setupNumberPicker(
-                    mainScrollView, mainValueList, mainTopLine,
-                    mainBottomLine, centerArrow, data);
-        }     if (layoutId == R.layout.edit_workout) {
+            if (data instanceof String) {
+                com.example.logster.AddBodyMetric.setupNumberPicker(
+                        mainScrollView, mainValueList, mainTopLine,
+                        mainBottomLine, centerArrow, (String) data);
+            }
+        }  else if (layoutId == R.layout.edit_workout) {
             TextView titleTextView = newView.findViewById(R.id.title);
             RecyclerView selectedExercisesRecyclerView = newView.findViewById(R.id.selected_exercises_list);
             View addExercisesBtn = newView.findViewById(R.id.addExercises);
             FrameLayout closeBtn = newView.findViewById(R.id.close);
             View logBtn = newView.findViewById(R.id.log_btn); // Добавляем кнопку "записать"
 
-            if (titleTextView != null && data != null) {
-                titleTextView.setText(data);
+            if (titleTextView != null && data instanceof String) {
+                titleTextView.setText((String) data);
             }
-
             if (selectedExercisesRecyclerView != null) {
                 selectedExercisesRecyclerView.setLayoutManager(new LinearLayoutManager(this));
                 selectedExercisesAdapter.updateExercises(new ArrayList<>(selectedExercises));
@@ -1451,7 +1509,7 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
                 selectedExercisesRecyclerView.setVisibility(selectedExercises.isEmpty() ? View.GONE : View.VISIBLE);
 
                 ExerciseDragHelper dragHelper = new ExerciseDragHelper(selectedExercisesAdapter,
-                        selectedExercises, this, data);
+                        selectedExercises, this, data instanceof String ? (String) data : null);
                 ItemTouchHelper itemTouchHelper = new ItemTouchHelper(dragHelper);
                 itemTouchHelper.attachToRecyclerView(selectedExercisesRecyclerView);
 
@@ -1477,10 +1535,12 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
                 Log.w("MainActivity", "log_btn не найден в edit_workout");
             }
         } else if (layoutId == R.layout.add_exercises) {
+
             RecyclerView exerciseRecyclerView = newView.findViewById(R.id.exercise_list);
             TextView emptyView = newView.findViewById(R.id.empty_view);
             FrameLayout closeButton = newView.findViewById(R.id.close);
             TextView addExercisesButton = newView.findViewById(R.id.add_exercises_btn);
+            EditText searchBar = newView.findViewById(R.id.search_bar); // Находим EditText
 
             if (exerciseRecyclerView != null) {
                 exerciseRecyclerView.setLayoutManager(new LinearLayoutManager(this));
@@ -1494,6 +1554,31 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
                 exercisesAdapter = new ExercisesAdapter(exercises, addExercises, this);
                 exerciseRecyclerView.setAdapter(exercisesAdapter);
                 addExercises.initialize(this, exercises, exercisesAdapter, emptyView, addExercisesButton);
+
+                // Настройка поиска
+                if (searchBar != null) {
+                    searchBar.addTextChangedListener(new android.text.TextWatcher() {
+                        @Override
+                        public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+                        @Override
+                        public void onTextChanged(CharSequence s, int start, int before, int count) {}
+
+                        @Override
+                        public void afterTextChanged(android.text.Editable s) {
+                            String query = s.toString().trim();
+                            exercisesAdapter.filterExercises(query);
+                            if (emptyView != null) {
+                                emptyView.setVisibility(exercisesAdapter.getItemCount() == 0 ? View.VISIBLE : View.GONE);
+                                exerciseRecyclerView.setVisibility(exercisesAdapter.getItemCount() == 0 ? View.GONE : View.VISIBLE);
+                            }
+                            Log.d("MainActivity", "Search query: " + query + ", results: " + exercisesAdapter.getItemCount());
+                        }
+                    });
+                } else {
+                    Log.w("MainActivity", "search_bar EditText is null in add_exercises");
+                }
+
                 exerciseRecyclerView.setVisibility(exercises.isEmpty() ? View.GONE : View.VISIBLE);
                 if (emptyView != null) {
                     emptyView.setVisibility(exercises.isEmpty() ? View.VISIBLE : View.GONE);
@@ -1652,8 +1737,326 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
             if (close != null) {
                 close.setOnClickListener(v -> backSheetExerciseDescription(v));
             }
-        }
+        } else if (layoutId == R.layout.add_p_workout) {
+            View muscleBtn = newView.findViewById(R.id.muscle);
+            View slimBtn = newView.findViewById(R.id.slim);
 
+            muscleBtn.setOnClickListener(v -> {
+                animateButtonSelection(v, true);
+                personalWorkoutData.setGoal("muscle");
+                switchSheet(R.layout.add_p_workout2, null, true, R.anim.slide_out_left, R.anim.slide_in_right);
+            });
+            slimBtn.setOnClickListener(v -> {
+                animateButtonSelection(v, true);
+                personalWorkoutData.setGoal("slim");
+                switchSheet(R.layout.add_p_workout2, null, true, R.anim.slide_out_left, R.anim.slide_in_right);
+            });
+        } else if (layoutId == R.layout.add_p_workout2) {
+            View visibleMusclesBtn = newView.findViewById(R.id.visibleMuscules);
+            View strongBtn = newView.findViewById(R.id.strong);
+            View bigBtn = newView.findViewById(R.id.big);
+            View leanerBtn = newView.findViewById(R.id.leaner);
+            View backBtn = newView.findViewById(R.id.back);
+
+            View.OnClickListener nextListener = v -> {
+                animateButtonSelection(v, true);
+                String motivation = v.getId() == R.id.visibleMuscules ? "visibleMuscles" :
+                        v.getId() == R.id.strong ? "strong" :
+                                v.getId() == R.id.big ? "big" : "leaner";
+                personalWorkoutData.setMotivation(motivation);
+                switchSheet(R.layout.add_p_workout3, null, true, R.anim.slide_out_left, R.anim.slide_in_right);
+            };
+            visibleMusclesBtn.setOnClickListener(nextListener);
+            strongBtn.setOnClickListener(nextListener);
+            bigBtn.setOnClickListener(nextListener);
+            leanerBtn.setOnClickListener(nextListener);
+            backBtn.setOnClickListener(v -> switchSheet(R.layout.add_p_workout, null, true, R.anim.slide_out_right, R.anim.slide_in_left));
+        } else if (layoutId == R.layout.add_p_workout3) {
+            View beginnerBtn = newView.findViewById(R.id.beginner);
+            View intermediateBtn = newView.findViewById(R.id.average);
+            View advancedBtn = newView.findViewById(R.id.advanced);
+            View backBtn = newView.findViewById(R.id.back);
+
+            View.OnClickListener nextListener = v -> {
+                animateButtonSelection(v, true);
+                String level = v.getId() == R.id.beginner ? "beginner" :
+                        v.getId() == R.id.average ? "intermediate" : "advanced";
+                personalWorkoutData.setFitnessLevel(level);
+                switchSheet(R.layout.add_p_workout4, null, true, R.anim.slide_out_left, R.anim.slide_in_right);
+            };
+            beginnerBtn.setOnClickListener(nextListener);
+            intermediateBtn.setOnClickListener(nextListener);
+            advancedBtn.setOnClickListener(nextListener);
+            backBtn.setOnClickListener(v -> switchSheet(R.layout.add_p_workout2, null, true, R.anim.slide_out_right, R.anim.slide_in_left));
+        } else if (layoutId == R.layout.add_p_workout4) {
+            EditText heightEt = newView.findViewById(R.id.tell_et);
+            View continueBtn = newView.findViewById(R.id.continue_p4);
+            View backBtn = newView.findViewById(R.id.back);
+
+            continueBtn.setOnClickListener(v -> {
+                animateButtonSelection(v, true);
+                String height = heightEt.getText().toString().trim();
+                if (!height.isEmpty()) {
+                    personalWorkoutData.setHeight(height);
+                    switchSheet(R.layout.add_p_workout5, null, true, R.anim.slide_out_left, R.anim.slide_in_right);
+                } else {
+                    Toast.makeText(this, "Введите рост", Toast.LENGTH_SHORT).show();
+                }
+            });
+            backBtn.setOnClickListener(v -> switchSheet(R.layout.add_p_workout3, null, true, R.anim.slide_out_right, R.anim.slide_in_left));
+        } else if (layoutId == R.layout.add_p_workout5) {
+            EditText weightEt = newView.findViewById(R.id.weight_et);
+            View continueBtn = newView.findViewById(R.id.continue_p5);
+            View backBtn = newView.findViewById(R.id.back);
+
+            continueBtn.setOnClickListener(v -> {
+                animateButtonSelection(v, true);
+                String weight = weightEt.getText().toString().trim();
+                if (!weight.isEmpty()) {
+                    personalWorkoutData.setWeight(weight);
+                    switchSheet(R.layout.add_p_workout6, null, true, R.anim.slide_out_left, R.anim.slide_in_right);
+                } else {
+                    Toast.makeText(this, "Введите вес", Toast.LENGTH_SHORT).show();
+                }
+            });
+            backBtn.setOnClickListener(v -> switchSheet(R.layout.add_p_workout4, null, true, R.anim.slide_out_right, R.anim.slide_in_left));
+        } else if (layoutId == R.layout.add_p_workout6) {
+            EditText ageEt = newView.findViewById(R.id.weight_et); // Переименовать в XML на @id/age_et
+            View continueBtn = newView.findViewById(R.id.continue_p5); // Переименовать в XML на @id/continue_p6
+            View backBtn = newView.findViewById(R.id.back);
+
+            continueBtn.setOnClickListener(v -> {
+                animateButtonSelection(v, true);
+                String age = ageEt.getText().toString().trim();
+                if (!age.isEmpty()) {
+                    personalWorkoutData.setAge(age);
+                    switchSheet(R.layout.add_p_workout7, null, true, R.anim.slide_out_left, R.anim.slide_in_right);
+                } else {
+                    Toast.makeText(this, "Введите возраст", Toast.LENGTH_SHORT).show();
+                }
+            });
+            backBtn.setOnClickListener(v -> switchSheet(R.layout.add_p_workout5, null, true, R.anim.slide_out_right, R.anim.slide_in_left));
+        } else if (layoutId == R.layout.add_p_workout7) {
+            View armsBtn = newView.findViewById(R.id.arms);
+            View backPBtn = newView.findViewById(R.id.back_p);
+            View chestBtn = newView.findViewById(R.id.chest);
+            View legsBtn = newView.findViewById(R.id.legs);
+            View coreBtn = newView.findViewById(R.id.core);
+            View dontBtn = newView.findViewById(R.id.dont);
+            View backBtn = newView.findViewById(R.id.back);
+
+            View.OnClickListener nextListener = v -> {
+                animateButtonSelection(v, true);
+                String bodyPart = v.getId() == R.id.arms ? "arms" :
+                        v.getId() == R.id.back_p ? "back_p" :
+                                v.getId() == R.id.chest ? "chest" :
+                                        v.getId() == R.id.legs ? "legs" :
+                                                v.getId() == R.id.core ? "core" : "dont";
+                personalWorkoutData.setBodyPart(bodyPart);
+                switchSheet(R.layout.add_p_workout8, null, true, R.anim.slide_out_left, R.anim.slide_in_right);
+            };
+            armsBtn.setOnClickListener(nextListener);
+            backPBtn.setOnClickListener(nextListener);
+            chestBtn.setOnClickListener(nextListener);
+            legsBtn.setOnClickListener(nextListener);
+            coreBtn.setOnClickListener(nextListener);
+            dontBtn.setOnClickListener(nextListener);
+            backBtn.setOnClickListener(v -> switchSheet(R.layout.add_p_workout6, null, true, R.anim.slide_out_right, R.anim.slide_in_left));
+        } else if (layoutId == R.layout.add_p_workout8) {
+            View gymBtn = newView.findViewById(R.id.gym);
+            View homeBtn = newView.findViewById(R.id.home);
+            View backBtn = newView.findViewById(R.id.back);
+
+            View.OnClickListener nextListener = v -> {
+                animateButtonSelection(v, true);
+                String location = v.getId() == R.id.gym ? "gym" : "home";
+                personalWorkoutData.setLocation(location);
+                switchSheet(R.layout.add_p_workout9, null, true, R.anim.slide_out_left, R.anim.slide_in_right);
+            };
+            gymBtn.setOnClickListener(nextListener);
+            homeBtn.setOnClickListener(nextListener);
+            backBtn.setOnClickListener(v -> switchSheet(R.layout.add_p_workout7, null, true, R.anim.slide_out_right, R.anim.slide_in_left));
+        } else if (layoutId == R.layout.add_p_workout9) {
+            int[] dayIds = {R.id.monday, R.id.tuesday, R.id.wednesday, R.id.thursday, R.id.friday, R.id.saturday, R.id.sunday};
+            String[] dayNames = {"Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"};
+            View createBtn = newView.findViewById(R.id.create);
+            View backBtn = newView.findViewById(R.id.back);
+            RelativeLayout countDayLayout = newView.findViewById(R.id.count_day);
+            TextView countDayTextView = newView.findViewById(R.id.count_day_text);
+
+            TextView[] dayTextViews = new TextView[dayIds.length];
+
+            // Проверка на null
+            if (createBtn == null || backBtn == null || countDayLayout == null || countDayTextView == null) {
+                Log.e("MainActivity", "One or more UI elements in add_p_workout9 are null");
+                Toast.makeText(this, "Ошибка загрузки интерфейса", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            for (int i = 0; i < dayIds.length; i++) {
+                TextView dayTextView = newView.findViewById(dayIds[i]);
+                if (dayTextView == null) {
+                    Log.e("MainActivity", "Day TextView not found for ID: " + dayIds[i]);
+                    continue;
+                }
+                dayTextViews[i] = dayTextView;
+                String dayName = dayNames[i];
+                dayTextView.setTag(false);
+                dayTextView.setBackgroundResource(R.drawable.done_btn_selector2);
+                dayTextView.setSelected(false);
+
+                dayTextView.setOnClickListener(v -> {
+                    boolean isSelected = !(Boolean) dayTextView.getTag();
+                    int selectedCount = personalWorkoutData.getTrainingDays().size();
+
+                    if (isSelected && selectedCount >= 3) {
+                        Toast.makeText(this, "Можно выбрать не более 3 дней", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+
+                    dayTextView.setTag(isSelected);
+                    dayTextView.setSelected(isSelected);
+                    animateButtonSelection(dayTextView, isSelected);
+
+                    if (isSelected) {
+                        personalWorkoutData.addTrainingDay(dayName);
+                    } else {
+                        personalWorkoutData.removeTrainingDay(dayName);
+                    }
+
+                    Log.d("MainActivity", "Day: " + dayName + ", isSelected: " + isSelected +
+                            ", Days: " + personalWorkoutData.getTrainingDays() +
+                            ", Count: " + personalWorkoutData.getTrainingDays().size());
+
+                    countDayTextView.setText(personalWorkoutData.getTrainingDays().size() + " из 3");
+
+                    selectedCount = personalWorkoutData.getTrainingDays().size();
+                    for (TextView otherDay : dayTextViews) {
+                        if (otherDay != null) {
+                            boolean isOtherSelected = (Boolean) otherDay.getTag();
+                            otherDay.setEnabled(isOtherSelected || selectedCount < 3);
+                            otherDay.setAlpha(!isOtherSelected && selectedCount >= 3 ? 0.5f : 1f);
+                        }
+                    }
+
+                    // Упрощенная логика для кнопки "Создать"
+                    createBtn.setEnabled(selectedCount > 0);
+                    updateCreateButtonAnimation(createBtn, selectedCount > 0);
+                });
+            }
+
+            countDayTextView.setText(personalWorkoutData.getTrainingDays().size() + " из 3");
+
+            createBtn.setOnClickListener(v -> {
+                if (personalWorkoutData.getTrainingDays().isEmpty()) {
+                    Toast.makeText(this, "Выберите хотя бы один день", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                // Проверка обязательных полей
+                if (personalWorkoutData.getGoal() == null || personalWorkoutData.getFitnessLevel() == null ||
+                        personalWorkoutData.getBodyPart() == null) {
+                    Toast.makeText(this, "Заполните все параметры тренировки", Toast.LENGTH_SHORT).show();
+                    switchSheet(R.layout.add_p_workout8, null, true, R.anim.slide_out_right, R.anim.slide_in_left);
+                    return;
+                }
+
+                // Генерируем программу
+                WorkoutProgramGenerator generator = new WorkoutProgramGenerator(personalWorkoutData);
+                List<WorkoutProgramGenerator.WorkoutExercise> program = generator.generateProgram();
+
+                if (program.isEmpty()) {
+                    Log.w("MainActivity", "Generated program is empty");
+                    Toast.makeText(this, "Не удалось создать программу. Проверьте параметры.", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                // Переходим на финальный экран без сохранения
+                switchSheet(R.layout.add_p_workout_final, program, true, R.anim.slide_out_left, R.anim.slide_in_right);
+                Toast.makeText(this, "Программа создана", Toast.LENGTH_SHORT).show();
+            });
+
+            backBtn.setOnClickListener(v ->
+                    switchSheet(R.layout.add_p_workout8, null, true, R.anim.slide_out_right, R.anim.slide_in_left));
+        } else if (layoutId == R.layout.add_p_workout_final) {
+            RecyclerView recyclerView = newView.findViewById(R.id.selected_exercises_list);
+            TextView targetText = newView.findViewById(R.id.target);
+            TextView levelText = newView.findViewById(R.id.level);
+            TextView daysText = newView.findViewById(R.id.days_week);
+            TextView areaText = newView.findViewById(R.id.area);
+            View createBtn = newView.findViewById(R.id.create_program);
+            View backBtn = newView.findViewById(R.id.close);
+
+            if (recyclerView == null || targetText == null || levelText == null ||
+                    daysText == null || areaText == null || createBtn == null || backBtn == null) {
+                Log.e("MainActivity", "One or more UI elements in add_p_workout_final are null");
+                Toast.makeText(this, "Ошибка загрузки интерфейса", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            if (data instanceof List) {
+                @SuppressWarnings("unchecked")
+                List<WorkoutProgramGenerator.WorkoutExercise> program = (List<WorkoutProgramGenerator.WorkoutExercise>) data;
+
+                if (program == null || program.isEmpty()) {
+                    Log.e("MainActivity", "Program is null or empty");
+                    Toast.makeText(this, "Программа не содержит упражнений", Toast.LENGTH_SHORT).show();
+                    recyclerView.setVisibility(View.GONE);
+                    return;
+                }
+
+                // Логирование для проверки данных
+                for (WorkoutProgramGenerator.WorkoutExercise exercise : program) {
+                    StringBuilder setsInfo = new StringBuilder();
+                    for (com.example.logster.Set set : exercise.getSets()) {
+                        setsInfo.append("Вес: ").append(set.getWeight()).append(", Повторений: ").append(set.getReps()).append("; ");
+                    }
+                    Log.d("MainActivity", "Exercise: " + exercise.getExercise().getName() +
+                            ", Sets: " + setsInfo +
+                            ", Tags: " + String.join(", ", exercise.getExercise().getTags()));
+                }
+
+                // Подготовка данных для адаптера
+                List<WorkoutProgramItem> items = prepareWorkoutItems(program, personalWorkoutData.getTrainingDays());
+                recyclerView.setLayoutManager(new LinearLayoutManager(this));
+                recyclerView.setAdapter(new WorkoutExerciseAdapter(items));
+                recyclerView.setVisibility(View.VISIBLE);
+
+                String goal = personalWorkoutData.getGoal();
+                String fitnessLevel = personalWorkoutData.getFitnessLevel();
+                String bodyPart = personalWorkoutData.getBodyPart();
+                List<String> trainingDays = personalWorkoutData.getTrainingDays();
+
+                targetText.setText("Цель: " + (goal != null ? translateGoal(goal) : "Не указана"));
+                levelText.setText("Уровень: " + (fitnessLevel != null ? translateFitnessLevel(fitnessLevel) : "Не указан"));
+                daysText.setText("Дней в неделю: " + (trainingDays != null ? trainingDays.size() : 0));
+                areaText.setText("Целевая область: " + (bodyPart != null ? translateBodyPart(bodyPart) : "Не указана"));
+
+                createBtn.setOnClickListener(v -> {
+                    if (personalWorkoutData.getTrainingDays().isEmpty()) {
+                        Toast.makeText(this, "Дни тренировок не выбраны", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+
+                    // Создаем папку и тренировки
+                    createProgramFolderAndWorkouts(program, personalWorkoutData.getTrainingDays());
+
+                    // Обновляем UI
+                    updateMainItems();
+                    combinedAdapter.updateData(folders, workouts, bodyMetrics, currentFolderName);
+                    widgetSheet.hide(null);
+                    Toast.makeText(this, "Программа сохранена", Toast.LENGTH_SHORT).show();
+                });
+
+                backBtn.setOnClickListener(v ->
+                        switchSheet(R.layout.add_p_workout9, null, true, R.anim.slide_out_right, R.anim.slide_in_left));
+            } else {
+                Log.e("MainActivity", "Invalid data type for add_p_workout_final: " +
+                        (data != null ? data.getClass().getName() : "null"));
+                Toast.makeText(this, "Ошибка отображения программы", Toast.LENGTH_SHORT).show();
+                recyclerView.setVisibility(View.GONE);
+            }
+        }
 
         if (useHorizontalTransition) {
             widgetSheet.showWithHorizontalTransition(exitAnim, enterAnim, newView, null);
@@ -1982,5 +2385,200 @@ public class MainActivity extends AppCompatActivity implements AddWorkout.Workou
                 .filter(w -> w.id.equals(workoutId))
                 .map(w -> w.name)
                 .findFirst();
+    }
+
+    public void addPersonalWorkout(View view) {
+        personalWorkoutData = new PersonalWorkoutData(); // Инициализация данных
+        switchSheet(R.layout.add_p_workout, null, false, 0, 0);
+        Log.d("MainActivity", "Started personal workout creation");
+    }
+    private void animateButtonSelection(View button, boolean isSelected) {
+        // Мгновенно устанавливаем новое состояние
+        button.setSelected(isSelected);
+        button.setBackgroundResource(R.drawable.done_btn_selector2);
+
+        // Анимация масштабирования
+        ObjectAnimator scaleX = ObjectAnimator.ofFloat(button, "scaleX", 1f, 0.95f, 1f);
+        ObjectAnimator scaleY = ObjectAnimator.ofFloat(button, "scaleY", 1f, 0.95f, 1f);
+        // Легкая анимация прозрачности
+        ObjectAnimator alpha = ObjectAnimator.ofFloat(button, "alpha", 1f, 0.8f, 1f);
+
+        // Настраиваем анимацию
+        AnimatorSet animatorSet = new AnimatorSet();
+        animatorSet.playTogether(scaleX, scaleY, alpha);
+        animatorSet.setDuration(120); // 120 мс для плавности
+        animatorSet.setInterpolator(new OvershootInterpolator(1.5f)); // Легкий отскок
+        animatorSet.start();
+    }
+    private void updateCreateButtonAnimation(View button, boolean isEnabled) {
+        button.setEnabled(isEnabled);
+        // Устанавливаем селектор сразу, чтобы он отобразил правильное состояние
+        button.setBackgroundResource(R.drawable.enter_btn_selector2);
+
+        // Плавная анимация для переходов
+        float startAlpha = isEnabled ? 0.5f : 1f;
+        float endAlpha = isEnabled ? 1f : 0.5f;
+        ObjectAnimator animator = ObjectAnimator.ofFloat(button, "alpha", startAlpha, endAlpha);
+        animator.setDuration(200); // 200 мс для плавности
+        animator.setInterpolator(new LinearInterpolator()); // Линейный для простоты
+        animator.start();
+    }
+    private String translateGoal(String goal) {
+        switch (goal) {
+            case "muscle": return "Набрать массу";
+            case "slim": return "Похудеть";
+            default: return "Не указано";
+        }
+    }
+
+    private String translateFitnessLevel(String level) {
+        switch (level) {
+            case "beginner": return "Новичок";
+            case "intermediate": return "Средний";
+            case "advanced": return "Продвинутый";
+            default: return "Не указано";
+        }
+    }
+
+    private String translateBodyPart(String bodyPart) {
+        switch (bodyPart) {
+            case "arms": return "Руки";
+            case "back_p": return "Спина";
+            case "chest": return "Грудь";
+            case "legs": return "Ноги";
+            case "core": return "Кор";
+            case "dont": return "Все тело";
+            default: return "Не указано";
+        }
+    }
+    private List<WorkoutProgramItem> prepareWorkoutItems(List<WorkoutProgramGenerator.WorkoutExercise> program, List<String> trainingDays) {
+        List<WorkoutProgramItem> items = new ArrayList<>();
+        if (program == null || program.isEmpty() || trainingDays == null || trainingDays.isEmpty()) {
+            return items;
+        }
+
+        // Генерируем имя тренировки
+        String workoutName = "Персональная тренировка " + UUID.randomUUID().toString().substring(0, 8);
+
+        // Распределяем упражнения по дням
+        int daysCount = trainingDays.size();
+        int exercisesPerDay = (int) Math.ceil((double) program.size() / daysCount);
+
+        // Группируем упражнения по первому тегу
+        Map<String, List<WorkoutProgramGenerator.WorkoutExercise>> exercisesByTag = new HashMap<>();
+        for (WorkoutProgramGenerator.WorkoutExercise exercise : program) {
+            String primaryTag = exercise.getExercise().getTags().isEmpty() ?
+                    "Без тегов" : exercise.getExercise().getTags().get(0);
+            exercisesByTag.computeIfAbsent(primaryTag, k -> new ArrayList<>()).add(exercise);
+        }
+
+        // Сортируем теги
+        List<String> sortedTags = new ArrayList<>(exercisesByTag.keySet());
+        Collections.sort(sortedTags);
+
+        // Распределяем упражнения по дням
+        for (int dayIndex = 0; dayIndex < daysCount; dayIndex++) {
+            String dayName = trainingDays.get(dayIndex);
+            items.add(new DayHeader(dayName, workoutName));
+
+            // Собираем упражнения для текущего дня
+            List<WorkoutProgramGenerator.WorkoutExercise> dayExercises = new ArrayList<>();
+            int startIndex = dayIndex * exercisesPerDay;
+            int endIndex = Math.min(startIndex + exercisesPerDay, program.size());
+
+            // Добавляем упражнения по тегам
+            for (String tag : sortedTags) {
+                List<WorkoutProgramGenerator.WorkoutExercise> tagExercises = exercisesByTag.get(tag);
+                for (WorkoutProgramGenerator.WorkoutExercise exercise : tagExercises) {
+                    int exerciseIndex = program.indexOf(exercise);
+                    if (exerciseIndex >= startIndex && exerciseIndex < endIndex) {
+                        dayExercises.add(exercise);
+                    }
+                }
+            }
+
+            // Добавляем упражнения в список элементов
+            for (WorkoutProgramGenerator.WorkoutExercise exercise : dayExercises) {
+                items.add(new WorkoutExerciseItem(exercise));
+            }
+        }
+
+        return items;
+    }
+
+    private void createProgramFolderAndWorkouts(List<WorkoutProgramGenerator.WorkoutExercise> program, List<String> trainingDays) {
+        // Создаем уникальное имя папки
+        String baseFolderName = "Программа";
+        String folderName = baseFolderName;
+        int suffix = 1;
+
+        // Проверяем существование папки и генерируем уникальное имя
+        while (true) {
+            boolean nameExists = false;
+            String currentName = folderName; // Создаем копию для использования в лямбда
+            for (Folder f : folders) {
+                if (f.name.equals(currentName)) {
+                    nameExists = true;
+                    break;
+                }
+            }
+            if (!nameExists) {
+                break;
+            }
+            folderName = baseFolderName + " " + suffix++;
+        }
+
+        // Создаем папку
+        String folderId = UUID.randomUUID().toString();
+        Folder folder = new Folder(folderId, folderName);
+        folders.add(folder);
+
+        // Распределяем упражнения по дням
+        int daysCount = trainingDays.size();
+        int exercisesPerDay = (int) Math.ceil((double) program.size() / daysCount);
+
+        for (int dayIndex = 0; dayIndex < daysCount; dayIndex++) {
+            String dayName = trainingDays.get(dayIndex);
+            String workoutName = "Тренировка на " + dayName.toLowerCase();
+            String workoutId = UUID.randomUUID().toString();
+            Workout newWorkout = new Workout(workoutId, workoutName);
+
+            // Добавляем упражнения для текущего дня
+            int startIndex = dayIndex * exercisesPerDay;
+            int endIndex = Math.min(startIndex + exercisesPerDay, program.size());
+            for (int i = startIndex; i < endIndex; i++) {
+                WorkoutProgramGenerator.WorkoutExercise exercise = program.get(i);
+                newWorkout.exerciseIds.add(exercise.getExercise().getId());
+                List<com.example.logster.Set> sets = new ArrayList<>(exercise.getSets());
+                newWorkout.exerciseSets.put(exercise.getExercise().getId(), sets);
+            }
+
+            // Добавляем тренировку в список
+            workouts.add(newWorkout);
+            folder.addItem(workoutId);
+
+            // Обновляем weeklySchedule
+            DayOfWeek dayOfWeek = DAY_OF_WEEK_MAP.get(dayName.toUpperCase());
+            if (dayOfWeek != null) {
+                weeklySchedule.put(dayOfWeek, workoutId);
+            }
+        }
+
+        // Сохраняем данные
+        try {
+            SharedPreferences.Editor editor = sharedPreferences.edit();
+            String programKey = "personal_workout_" + folderId;
+            editor.putString(programKey, personalWorkoutData.toJson().toString());
+            editor.apply();
+        } catch (JSONException e) {
+            Log.e("MainActivity", "Ошибка сохранения программы: " + e.getMessage(), e);
+        }
+
+        saveFolders();
+        saveWorkouts();
+        saveWeeklySchedule();
+        syncWorkoutDates();
+
+        Log.d("MainActivity", "Создана папка: " + folderName + " с " + daysCount + " тренировками");
     }
 }

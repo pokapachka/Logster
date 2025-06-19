@@ -10,6 +10,7 @@ import android.view.ViewGroup;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.google.android.flexbox.FlexboxLayout;
@@ -123,6 +124,7 @@ public class BottomSheets {
         }
         sheetView.setVisibility(View.VISIBLE);
         sheetView.bringToFront();
+        // Поднимаем iconContainer поверх sheetView
         ValueAnimator animator = ValueAnimator.ofInt(screenHeight, initialTopMargin);
         animator.setDuration(300);
         animator.addUpdateListener(animation -> {
@@ -228,7 +230,7 @@ public class BottomSheets {
             public void onAnimationEnd(android.animation.Animator animation) {
                 if (sheetView != null && sheetView.getParent() != null) {
                     rootLayout.removeView(sheetView);
-                    Log.d(TAG, "Removed sheetView from rootLayout on hide");
+                    Log.d(TAG, "Removed sheetView from rootLayout on hide, child count: " + rootLayout.getChildCount());
                 }
                 isShowing = false;
                 if (onHidden != null) {
@@ -320,7 +322,7 @@ public class BottomSheets {
         newView.setVisibility(View.GONE);
         if (newView.getParent() == null) {
             rootLayout.addView(newView);
-            Log.d(TAG, "Added newView to rootLayout in showWithHorizontalTransition");
+            Log.d(TAG, "Added newView to rootLayout in showWithHorizontalTransition, child count: " + rootLayout.getChildCount());
         }
         int maxHeight = screenHeight - initialTopMargin;
         FrameLayout.LayoutParams heightParams = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, maxHeight);
@@ -339,20 +341,46 @@ public class BottomSheets {
                 if (animationCount[0] == 0) {
                     if (sheetView != null && sheetView.getParent() != null) {
                         rootLayout.removeView(sheetView);
-                        Log.d(TAG, "Removed old sheetView after horizontal transition");
+                        Log.d(TAG, "Removed old sheetView after horizontal transition, child count: " + rootLayout.getChildCount());
+                        for (int i = 0; i < rootLayout.getChildCount(); i++) {
+                            View child = rootLayout.getChildAt(i);
+                            Log.d(TAG, "Remaining child " + i + ": " + child.getClass().getSimpleName() + ", id=" + child.getId());
+                        }
                     }
                     sheetView = newView;
                     params = (FrameLayout.LayoutParams) sheetView.getLayoutParams();
                     sheetView.setVisibility(View.VISIBLE);
+                    sheetView.bringToFront();
+
+                    // Поднимаем iconContainer поверх sheetView
+                    if (activity instanceof BaseActivity) {
+                        ImageView hideKeyboardIcon = ((BaseActivity) activity).getHideKeyboardIcon();
+                        if (hideKeyboardIcon != null) {
+                            View iconContainer = (View) hideKeyboardIcon.getParent();
+                            if (iconContainer != null && iconContainer.getParent() != null) {
+                                ((ViewGroup) iconContainer.getParent()).bringChildToFront(iconContainer);
+                                Log.d(TAG, "Brought iconContainer to front after sheetView in showWithHorizontalTransition");
+                            } else {
+                                Log.w(TAG, "iconContainer or its parent is null in showWithHorizontalTransition");
+                            }
+                        }
+                    }
+
                     setSwipeListener();
                     if (onComplete != null) {
                         onComplete.run();
                     }
                     isShowing = true;
-                    // Заполняем данные, если новый экран — exercise_description
                     if (sheetView.getId() == R.id.exerciseDescriprion && activity instanceof MainActivity) {
                         populateExerciseDescription();
                         Log.d(TAG, "Populated exercise description after horizontal transition");
+                    }
+
+                    // Логируем содержимое rootLayout
+                    Log.d(TAG, "RootLayout child count after transition: " + rootLayout.getChildCount());
+                    for (int i = 0; i < rootLayout.getChildCount(); i++) {
+                        View child = rootLayout.getChildAt(i);
+                        Log.d(TAG, "Child " + i + ": " + child.getClass().getSimpleName() + ", id=" + child.getId());
                     }
                 }
             }

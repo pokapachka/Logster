@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="60dp">
+
+    <ImageView
+        android:id="@+id/checkbox_selected"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:background="@drawable/check"
+        android:layout_centerVertical="true" />
+
+    <TextView
+        android:id="@+id/exercise_name_selected2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Название тренировки"
+        android:textSize="15sp"
+        android:textColor="#FFFFFF"
+        android:textStyle="bold"
+        android:layout_marginStart="60dp"
+        android:layout_marginTop="10dp"/>
+
+    <TextView
+        android:id="@+id/sets2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="подходы "
+        android:textColor="#ACADB7"
+        android:layout_below="@+id/exercise_name_selected2"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        android:layout_marginStart="60dp"/>
+
+    <TextView
+        android:id="@+id/weight"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Вес"
+        android:layout_toRightOf="@+id/sets2"
+        android:textColor="#ACADB7"
+        android:layout_below="@+id/exercise_name_selected2"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        android:layout_marginStart="10dp"
+        android:visibility="gone"/>
+
+    <ImageView
+        android:id="@+id/add_button_selected"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:background="@drawable/add_ex"
+        android:layout_centerVertical="true"
+        android:layout_alignParentEnd="true" />
+
+
+</RelativeLayout>

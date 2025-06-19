@@ -73,7 +73,7 @@ public class SplashActivity extends AppCompatActivity {
 
             AnimatorSet secondStage = new AnimatorSet();
             secondStage.playTogether(scaleX, scaleY, translateX, translateY);
-            secondStage.setDuration(1500);
+            secondStage.setDuration(1000);
             secondStage.setInterpolator(new android.view.animation.DecelerateInterpolator());
 
             // Combine animations sequentially
