@@ -4,6 +4,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
@@ -34,7 +35,21 @@ public class FolderAdapter extends RecyclerView.Adapter<FolderAdapter.FolderView
         int itemCount = folder.itemIds != null ? folder.itemIds.size() : 0;
         String itemsText = getItemsText(itemCount);
         holder.items.setText(itemsText);
-        holder.itemView.setOnClickListener(v -> activity.openFolder(folder));
+
+        // Обработчик клика по всей карточке (для открытия папки)
+        holder.itemView.setOnClickListener(v -> {
+            activity.openFolder(folder);
+            Log.d("FolderAdapter", "Folder clicked: " + folder.name);
+        });
+
+        // Обработчик клика по кнопке настроек
+        holder.settingsFolder.setOnClickListener(v -> {
+            FolderSettingsSheet settingsSheet = new FolderSettingsSheet(activity, folder);
+            settingsSheet.show();
+            Log.d("FolderAdapter", "Settings clicked for folder: " + folder.name);
+        });
+        holder.settingsFolder.setClickable(true);
+        holder.settingsFolder.setFocusable(true);
     }
 
     private String getItemsText(int count) {
@@ -62,11 +77,16 @@ public class FolderAdapter extends RecyclerView.Adapter<FolderAdapter.FolderView
     static class FolderViewHolder extends RecyclerView.ViewHolder {
         TextView folderName;
         TextView items;
+        ImageView settingsFolder;
 
         FolderViewHolder(View itemView) {
             super(itemView);
             folderName = itemView.findViewById(R.id.folder_name);
             items = itemView.findViewById(R.id.items);
+//            settingsFolder = itemView.findViewById(R.id.settings_folder);
+            // Убедимся, что settingsFolder кликабелен
+            settingsFolder.setClickable(true);
+            settingsFolder.setFocusable(true);
         }
     }
 }

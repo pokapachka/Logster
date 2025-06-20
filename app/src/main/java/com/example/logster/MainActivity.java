@@ -76,17 +76,17 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
     private BottomSheets widgetSheet;
     private String selectedWorkoutName;
     private List<String> selectedDays;
-    private List<Folder> folders;
+    public List<Folder> folders;
     public List<Workout> workouts;
-    private List<BodyMetric> bodyMetrics;
+    public List<BodyMetric> bodyMetrics;
     private RecyclerView workoutRecyclerView;
-    private CombinedAdapter combinedAdapter;
+    public CombinedAdapter combinedAdapter;
     private SharedPreferences sharedPreferences;
     private boolean isInFolder = false;
     private List<Object> mainItems;
     private FrameLayout backButton;
     private TextView titleTextView;
-    private String currentFolderName = null;
+    public String currentFolderName = null;
     private Map<DayOfWeek, String> weeklySchedule;
     private Map<String, List<String>> specificDates;
     private SelectedExercisesAdapter selectedExercisesAdapter;
@@ -764,7 +764,7 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
         }
     }
 
-    private void updateMainItems() {
+    public void updateMainItems() {
         mainItems.clear();
         mainItems.addAll(folders);
         List<String> folderItemIds = folders.stream()
@@ -1070,7 +1070,7 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
         switchSheet(R.layout.add_folders, null, false, 0, 0);
     }
 
-    private void saveFolders() {
+    public void saveFolders() {
         try {
             SharedPreferences.Editor editor = sharedPreferences.edit();
             JSONArray foldersArray = new JSONArray();

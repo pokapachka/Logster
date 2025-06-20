@@ -9,20 +9,25 @@
     android:fontFamily="sans-serif"
     android:background="@drawable/folder_background">
 
+    <!-- Фоновое изображение -->
     <ImageView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:src="@drawable/folder_item"
         android:scaleType="centerCrop" />
-    <!-- Значение метрики (например, вес в кг) -->
 
-    <ImageView
-        android:layout_width="25dp"
-        android:layout_height="16dp"
-        android:layout_marginTop="20dp"
-        android:layout_marginStart="20dp"
-        android:background="@drawable/settingwidget"/>
+    <!-- Кнопка настроек -->
+<!--    <ImageView-->
+<!--        android:id="@+id/settings_folder"-->
+<!--        android:layout_width="25dp"-->
+<!--        android:layout_height="16dp"-->
+<!--        android:layout_marginTop="20dp"-->
+<!--        android:layout_marginStart="20dp"-->
+<!--        android:src="@drawable/settingwidget"-->
+<!--        android:clickable="true"-->
+<!--        android:focusable="true" />-->
 
+    <!-- Название папки -->
     <TextView
         android:id="@+id/folder_name"
         android:layout_width="wrap_content"
@@ -37,7 +42,8 @@
         android:textColor="#FFFFFF"
         android:maxLines="1"
         android:ellipsize="end"/>
-    <!-- Дата записи метрики -->
+
+    <!-- Количество элементов -->
     <TextView
         android:id="@+id/items"
         android:layout_width="wrap_content"
