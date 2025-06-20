@@ -8,14 +8,21 @@
     android:background="?android:attr/selectableItemBackground">
 
     <ImageView
+        android:id="@+id/icon"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:layout_centerVertical="true"
+        android:clickable="true"
+        android:focusable="true" />
+
+    <ImageView
         android:id="@+id/checkbox"
         android:layout_width="50dp"
         android:layout_height="50dp"
         android:background="@drawable/checkbox_selector"
         android:layout_centerVertical="true"
         android:clickable="true"
-        android:focusable="true"
-        android:contentDescription="Select exercise" />
+        android:focusable="true" />
 
     <TextView
         android:id="@+id/exercise_name"
@@ -38,7 +45,6 @@
         android:layout_centerVertical="true"
         android:layout_alignParentEnd="true"
         android:clickable="true"
-        android:focusable="true"
-        android:contentDescription="Add exercise" />
+        android:focusable="true" />
 
 </RelativeLayout>

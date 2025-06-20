@@ -101,6 +101,7 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
     private String selectedDate;
     private ExercisesAdapter exercisesAdapter;
     private PersonalWorkoutData personalWorkoutData;
+    private ConfirmationBottomSheet confirmationSheet;
     public abstract class WorkoutProgramItem {
         public static final int TYPE_HEADER = 0;
         public static final int TYPE_EXERCISE = 1;
@@ -220,6 +221,8 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
             }
         });
 
+
+
         workoutRecyclerView = findViewById(R.id.workout_recycler_view);
         workoutRecyclerView.setLayoutManager(new GridLayoutManager(this, 2));
         workoutRecyclerView.setNestedScrollingEnabled(true);
@@ -232,6 +235,7 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
 
         combinedAdapter = new CombinedAdapter(this);
         workoutRecyclerView.setAdapter(combinedAdapter);
+        confirmationSheet = new ConfirmationBottomSheet(this);
 
         ItemTouchHelper itemTouchHelper = new ItemTouchHelper(new ItemTouchHelper.SimpleCallback(
                 ItemTouchHelper.UP | ItemTouchHelper.DOWN | ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT,
@@ -257,7 +261,7 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
                 Object targetItem = combinedAdapter.items.get(toPos);
                 Log.d("ItemTouchHelper", "Source: " + source.getClass().getSimpleName() + ", Target: " + targetItem.getClass().getSimpleName());
 
-                // Обработка нахождения над папкой (только для тренировок/метрик на главном экране)
+                // Обработка нахождения над папкой
                 if (!isInFolder && targetItem instanceof Folder && !(source instanceof Folder)) {
                     if (targetFolder != targetItem) {
                         resetFolderHighlight();
@@ -267,6 +271,7 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
                         Log.d("ItemTouchHelper", "Над папкой: " + targetFolder.name);
                     }
                     isOverFolder = true;
+                    return false; // Не перемещаем, если над папкой
                 } else {
                     if (isOverFolder) {
                         resetFolderHighlight();
@@ -275,12 +280,13 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
                     }
                 }
 
-                // Перемещение (только если не над папкой)
+                // Перемещение
                 if (!(targetItem instanceof Folder) || source instanceof Folder) {
                     Collections.swap(combinedAdapter.items, fromPos, toPos);
-                    combinedAdapter.notifyItemMoved(fromPos, toPos);
-                    combinedAdapter.notifyItemRangeChanged(Math.min(fromPos, toPos), Math.abs(fromPos - toPos) + 1);
-                    Log.d("ItemTouchHelper", "Перемещено: from=" + fromPos + ", to=" + toPos);
+                    recyclerView.post(() -> {
+                        combinedAdapter.notifyItemMoved(fromPos, toPos);
+                        Log.d("ItemTouchHelper", "Перемещено: from=" + fromPos + ", to=" + toPos);
+                    });
                     return true;
                 }
 
@@ -290,7 +296,7 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
             @Override
             public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) {
                 int pos = viewHolder.getAdapterPosition();
-                Log.d("ItemTouchHelper", "onSwiped: pos=" + pos + ", dir=" + direction);
+                Log.d("ItemTouchHelper", "onSwiped: pos=" + pos + ", direction=" + direction);
 
                 if (pos == RecyclerView.NO_POSITION || pos >= combinedAdapter.items.size()) {
                     Log.e("ItemTouchHelper", "Невалидная позиция свайпа: " + pos);
@@ -308,45 +314,112 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
                                 .orElse(null);
                         if (folder != null) {
                             String itemId = null;
+                            String itemName = null;
+                            String itemType = null;
                             if (item instanceof Workout) {
                                 itemId = ((Workout) item).id;
+                                itemName = ((Workout) item).name;
+                                itemType = "Workout";
                             } else if (item instanceof BodyMetric) {
                                 itemId = ((BodyMetric) item).id;
+                                itemName = ((BodyMetric) item).type;
+                                itemType = "BodyMetric";
                             }
                             if (itemId != null) {
-                                folder.itemIds.remove(itemId);
-                                combinedAdapter.items.remove(pos);
-                                combinedAdapter.notifyItemRemoved(pos);
-                                // Обновляем виджет папки
-                                int folderPos = combinedAdapter.getFolderPosition(folder.name);
-                                if (folderPos != -1) {
-                                    combinedAdapter.notifyItemChanged(folderPos);
-                                }
-                                updateMainItems();
-                                saveItems();
-                                Log.d("ItemTouchHelper", "Удалено из папки: ID=" + itemId + ", папка=" + currentFolderName);
+                                final String finalItemId = itemId;
+                                confirmationSheet.show(
+                                        "Удалить",
+                                        itemName,
+                                        itemType,
+                                        itemId,
+                                        () -> {
+                                            folder.itemIds.remove(finalItemId);
+                                            combinedAdapter.items.remove(pos);
+                                            combinedAdapter.notifyItemRemoved(pos);
+                                            int folderPos = combinedAdapter.getFolderPosition(folder.name);
+                                            if (folderPos != -1) {
+                                                combinedAdapter.notifyItemChanged(folderPos);
+                                            }
+                                            updateMainItems();
+                                            saveItems();
+                                            Log.d("ItemTouchHelper", "Удалено из папки: ID=" + finalItemId + ", папка=" + currentFolderName);
+                                        },
+                                        () -> {
+                                            Log.d("ItemTouchHelper", "Отменено действие: ID=" + finalItemId);
+                                            combinedAdapter.notifyItemChanged(pos);
+                                        }
+                                );
                             }
                         } else {
                             Log.w("ItemTouchHelper", "Папка не найдена: " + currentFolderName);
                         }
                     } else {
                         if (item instanceof Folder) {
-                            folders.remove((Folder) item);
+                            Folder folder = (Folder) item;
+                            confirmationSheet.show(
+                                    "Удалить",
+                                    folder.name,
+                                    "Folder",
+                                    folder.id,
+                                    () -> {
+                                        folders.remove(folder);
+                                        combinedAdapter.items.remove(pos);
+                                        combinedAdapter.notifyItemRemoved(pos);
+                                        updateMainItems();
+                                        saveItems();
+                                        Log.d("ItemTouchHelper", "Папка удалена: " + folder.name);
+                                    },
+                                    () -> {
+                                        Log.d("ItemTouchHelper", "Отменено действие: " + folder.name);
+                                        combinedAdapter.notifyItemChanged(pos);
+                                    }
+                            );
                         } else if (item instanceof Workout) {
                             Workout workout = (Workout) item;
-                            workouts.remove(workout);
-                            removeWorkoutFromSchedules(workout.id);
+                            confirmationSheet.show(
+                                    "Удалить",
+                                    workout.name,
+                                    "Workout",
+                                    workout.id,
+                                    () -> {
+                                        workouts.remove(workout);
+                                        removeWorkoutFromSchedules(workout.id);
+                                        combinedAdapter.items.remove(pos);
+                                        combinedAdapter.notifyItemRemoved(pos);
+                                        updateMainItems();
+                                        saveItems();
+                                        Log.d("ItemTouchHelper", "Тренировка удалена: " + workout.name);
+                                    },
+                                    () -> {
+                                        Log.d("ItemTouchHelper", "Отменено действие: " + workout.name);
+                                        combinedAdapter.notifyItemChanged(pos);
+                                    }
+                            );
                         } else if (item instanceof BodyMetric) {
-                            bodyMetrics.remove((BodyMetric) item);
+                            BodyMetric metric = (BodyMetric) item;
+                            confirmationSheet.show(
+                                    "Удалить",
+                                    metric.type,
+                                    "BodyMetric",
+                                    metric.id,
+                                    () -> {
+                                        bodyMetrics.remove(metric);
+                                        combinedAdapter.items.remove(pos);
+                                        combinedAdapter.notifyItemRemoved(pos);
+                                        updateMainItems();
+                                        saveItems();
+                                        Log.d("ItemTouchHelper", "Метрика удалена: " + metric.type);
+                                    },
+                                    () -> {
+                                        Log.d("ItemTouchHelper", "Отменено действие: " + metric.type);
+                                        combinedAdapter.notifyItemChanged(pos);
+                                    }
+                            );
                         }
-                        combinedAdapter.items.remove(pos);
-                        combinedAdapter.notifyItemRemoved(pos);
-                        updateMainItems();
-                        saveItems();
                     }
-                    Log.d("ItemTouchHelper", "Свайп завершен: папки=" + folders.size() + ", mainItems=" + mainItems.size());
                 } catch (Exception e) {
                     Log.e("ItemTouchHelper", "Ошибка свайпа: " + e.getMessage(), e);
+                    combinedAdapter.notifyItemChanged(pos);
                 }
             }
 
@@ -367,7 +440,11 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
 
                 Log.d("ItemTouchHelper", "onSelectedChanged: pos=" + pos + ", actionState=" + actionState);
 
+                Object item = combinedAdapter.items.get(pos);
+                boolean isFolder = item instanceof Folder;
+
                 if (actionState == ItemTouchHelper.ACTION_STATE_DRAG) {
+                    // Анимация для всех элементов, включая папки
                     viewHolder.itemView.animate()
                             .scaleX(1.03f)
                             .scaleY(1.03f)
@@ -375,24 +452,25 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
                             .setInterpolator(new DecelerateInterpolator())
                             .start();
                     viewHolder.itemView.setElevation(4f);
-                    Object item = combinedAdapter.items.get(pos);
-                    if (item instanceof Workout || item instanceof BodyMetric || item instanceof Folder) {
+                    if (item instanceof Workout || item instanceof BodyMetric || isFolder) {
                         animateStroke(viewHolder, "#333339", "#727275");
                     }
-                    Log.d("ItemTouchHelper", "Перетаскивание начато: pos=" + pos);
+                    Log.d("ItemTouchHelper", "Перетаскивание начато: pos=" + pos + ", тип=" + item.getClass().getSimpleName());
                 } else if (actionState == ItemTouchHelper.ACTION_STATE_IDLE) {
-                    viewHolder.itemView.animate()
-                            .scaleX(1.0f)
-                            .scaleY(1.0f)
-                            .setDuration(300)
-                            .setInterpolator(new DecelerateInterpolator())
-                            .start();
-                    viewHolder.itemView.setElevation(0f);
-                    Object item = combinedAdapter.items.get(pos);
-                    if (item instanceof Workout || item instanceof BodyMetric || item instanceof Folder) {
-                        animateStroke(viewHolder, "#727275", "#333339");
+                    // Плавный возврат для всех элементов, но только если не над папкой для не-папок
+                    if (!isOverFolder || isFolder) {
+                        viewHolder.itemView.animate()
+                                .scaleX(1.0f)
+                                .scaleY(1.0f)
+                                .setDuration(300)
+                                .setInterpolator(new DecelerateInterpolator())
+                                .start();
+                        viewHolder.itemView.setElevation(0f);
+                        if (item instanceof Workout || item instanceof BodyMetric || isFolder) {
+                            animateStroke(viewHolder, "#727275", "#333339");
+                        }
+                        Log.d("ItemTouchHelper", "Перетаскивание завершено: pos=" + pos + ", тип=" + item.getClass().getSimpleName());
                     }
-                    Log.d("ItemTouchHelper", "Перетаскивание завершено: pos=" + pos);
                 }
             }
 
@@ -402,6 +480,7 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
                 int pos = viewHolder.getAdapterPosition();
                 Log.d("ItemTouchHelper", "clearView: pos=" + pos + ", itemsSize=" + combinedAdapter.items.size());
 
+                // Проверка на невалидную позицию
                 if (pos == RecyclerView.NO_POSITION || pos >= combinedAdapter.items.size()) {
                     Log.w("ItemTouchHelper", "Невалидная позиция в clearView: pos=" + pos);
                     resetFolderHighlight();
@@ -409,20 +488,32 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
                     return;
                 }
 
-                viewHolder.itemView.animate()
-                        .scaleX(1.0f)
-                        .scaleY(1.0f)
-                        .alpha(1.0f)
-                        .setDuration(300)
-                        .setInterpolator(new DecelerateInterpolator())
-                        .start();
-                viewHolder.itemView.setElevation(0f);
                 Object item = combinedAdapter.items.get(pos);
-                if (item instanceof Workout || item instanceof BodyMetric || item instanceof Folder) {
-                    animateStroke(viewHolder, "#727275", "#333339");
+                boolean isFolder = item instanceof Folder;
+
+                // Пропускаем анимацию возврата для папок, если анимация RecyclerView активна
+                if (!isOverFolder || isFolder) {
+                    if (isFolder && recyclerView.getItemAnimator() != null && recyclerView.getItemAnimator().isRunning()) {
+                        Log.d("ItemTouchHelper", "Пропуск анимации возврата для папки, анимация активна: pos=" + pos);
+                        return;
+                    }
+                    // Анимация возврата только если не выполняется другая анимация
+                    viewHolder.itemView.animate()
+                            .scaleX(1.0f)
+                            .scaleY(1.0f)
+                            .alpha(1.0f)
+                            .translationX(0f)
+                            .translationY(0f)
+                            .setDuration(300)
+                            .setInterpolator(new DecelerateInterpolator())
+                            .start();
+                    viewHolder.itemView.setElevation(0f);
+                    if (item instanceof Workout || item instanceof BodyMetric || isFolder) {
+                        animateStroke(viewHolder, "#727275", "#333339");
+                    }
                 }
 
-                // Сброс всех ViewHolder для предотвращения случайной подсветки
+                // Сброс подсветки других элементов
                 for (int i = 0; i < recyclerView.getChildCount(); i++) {
                     View child = recyclerView.getChildAt(i);
                     RecyclerView.ViewHolder holder = recyclerView.getChildViewHolder(child);
@@ -435,8 +526,8 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
                     }
                 }
 
-                // Сброс в папку с анимацией
-                if (targetHolder != null && targetFolder != null && !isInFolder) {
+                // Добавление в папку только для тренировок/метрик
+                if (targetHolder != null && targetFolder != null && !isInFolder && !isFolder) {
                     int targetPos = targetHolder.getAdapterPosition();
                     if (targetPos != RecyclerView.NO_POSITION && targetPos < combinedAdapter.items.size() &&
                             combinedAdapter.items.get(targetPos) instanceof Folder &&
@@ -470,13 +561,15 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
                                     .withEndAction(() -> {
                                         finalTargetFolder.addItem(finalItemId);
                                         combinedAdapter.items.remove(finalPos);
-                                        combinedAdapter.notifyItemRemoved(finalPos);
-                                        int folderPos = combinedAdapter.getFolderPosition(finalTargetFolder.name);
-                                        if (folderPos != -1) {
-                                            combinedAdapter.notifyItemChanged(folderPos);
-                                        }
-                                        updateMainItems();
-                                        saveItems();
+                                        recyclerView.post(() -> {
+                                            combinedAdapter.notifyItemRemoved(finalPos);
+                                            int folderPos = combinedAdapter.getFolderPosition(finalTargetFolder.name);
+                                            if (folderPos != -1) {
+                                                combinedAdapter.notifyItemChanged(folderPos);
+                                            }
+                                            updateMainItems();
+                                            saveItems();
+                                        });
                                         sourceView.setTranslationX(0f);
                                         sourceView.setTranslationY(0f);
                                         sourceView.setScaleX(1.0f);
@@ -507,10 +600,9 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
                                     folder.itemIds.add(((BodyMetric) obj).id);
                                 }
                             }
-                            // Сохранение папки
                             int folderPos = combinedAdapter.getFolderPosition(folder.name);
                             if (folderPos != -1) {
-                                combinedAdapter.notifyItemChanged(folderPos);
+                                recyclerView.post(() -> combinedAdapter.notifyItemChanged(folderPos));
                             }
                             saveItems();
                             Log.d("ItemTouchHelper", "Обновлена папка: " + currentFolderName + ", itemIds=" + folder.itemIds);
@@ -599,8 +691,9 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
         });
         itemTouchHelper.attachToRecyclerView(workoutRecyclerView);
 
+// Настройка анимации RecyclerView
         DefaultItemAnimator animator = new DefaultItemAnimator();
-        animator.setMoveDuration(150);
+        animator.setMoveDuration(300);
         animator.setRemoveDuration(200);
         animator.setAddDuration(200);
         animator.setChangeDuration(200);
@@ -1299,9 +1392,8 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
                             combinedAdapter.updateData(folders, workouts, bodyMetrics, currentFolderName);
                             widgetSheet.hide(() -> {
                                 continueBtn.setEnabled(true);
-                                // Открываем widgets после закрытия
-                                widgetSheet = new BottomSheets(this, R.layout.widgets);
-                                widgetSheet.show();
+                                // Убрано повторное открытие widgets
+                                Log.d("MainActivity", "Папка создана и лист закрыт: " + folderName);
                             });
                         } else {
                             Toast.makeText(this, "Папка уже существует", Toast.LENGTH_SHORT).show();
@@ -2258,6 +2350,15 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
         List<CompletedExercise> completedExercises = new ArrayList<>();
         for (ExercisesAdapter.Exercise exercise : selectedExercises) {
             List<Set> sets = new ArrayList<>(exercise.getSets());
+            // Устанавливаем isCompleted=true только для подходов с reps > 0
+            for (Set set : sets) {
+                if (set.getReps() > 0) {
+                    set.setCompleted(true);
+                    Log.d("MainActivity", "Set marked as completed: ID=" + set.getId() + ", Weight=" + set.getWeight() + ", Reps=" + set.getReps());
+                } else {
+                    Log.d("MainActivity", "Set skipped (invalid reps): ID=" + set.getId() + ", Weight=" + set.getWeight() + ", Reps=" + set.getReps());
+                }
+            }
             completedExercises.add(new CompletedExercise(exercise.getId(), sets));
         }
 

@@ -47,12 +47,19 @@ dependencies {
     // HTTP клиент и WebSocket
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
+
     // Загрузка изображений
     implementation(libs.glide)
     annotationProcessor(libs.glide.compiler)
 
     // JSON обработка
     implementation(libs.json)
+
+    // Графики (MPAndroidChart)
+    implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
+
+    // AndroidX core
+    implementation(libs.core)
 
     // Тестирование
     testImplementation(libs.junit)

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Существующие стили -->
+    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+        <!-- Ваши настройки темы -->
+    </style>
+
+    <!-- Новый стиль для Spinner -->
+    <style name="CustomSpinner" parent="Widget.AppCompat.Spinner">
+        <item name="android:popupBackground">@drawable/background_graf2</item>
+    </style>
+</resources>

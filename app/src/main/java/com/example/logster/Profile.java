@@ -12,15 +12,17 @@ import com.bumptech.glide.Glide;
 public class Profile {
     private static final String TAG = "Profile";
     private final Activity activity;
-    private final BottomSheets bottomSheet;
+    private final BottomSheets bottomSheets;
+    private final ConfirmationBottomSheet confirmationSheet;
 
     public Profile(Activity activity, BottomSheets bottomSheet) {
         this.activity = activity;
-        this.bottomSheet = bottomSheet;
+        this.bottomSheets = bottomSheet;
+        this.confirmationSheet = new ConfirmationBottomSheet(activity);
     }
 
     public void setupProfileSheet(int layoutId, String data) {
-        View view = bottomSheet.getContentView();
+        View view = bottomSheets.getContentView();
         if (view == null) {
             Log.e(TAG, "Ошибка: content view is null for layoutId=" + layoutId);
             Toast.makeText(activity, "Ошибка загрузки интерфейса", Toast.LENGTH_SHORT).show();
@@ -49,11 +51,11 @@ public class Profile {
                     } else {
                         if (activity instanceof ChatActivity) {
                             ((ChatActivity) activity).updateProfileTag(tag);
-                            bottomSheet.switchSheet(R.layout.profile, null, true, R.anim.slide_out_right, R.anim.slide_in_left);
+                            bottomSheets.switchSheet(R.layout.profile, null, true, R.anim.slide_out_right, R.anim.slide_in_left);
                         }
                     }
                 });
-                back.setOnClickListener(v -> bottomSheet.switchSheet(R.layout.profile, null, true, R.anim.slide_out_right, R.anim.slide_in_left));
+                back.setOnClickListener(v -> bottomSheets.switchSheet(R.layout.profile, null, true, R.anim.slide_out_right, R.anim.slide_in_left));
             } else if (layoutId == R.layout.profile_image) {
                 ImageView profileImage = view.findViewById(R.id.image_profile);
                 View uploadBtn = view.findViewById(R.id.upload_image);
@@ -64,7 +66,6 @@ public class Profile {
                     Toast.makeText(activity, "Ошибка интерфейса фото", Toast.LENGTH_SHORT).show();
                     return;
                 }
-                // Круглая обрезка и центрирование изображения
                 profileImage.setScaleType(ImageView.ScaleType.CENTER_CROP);
                 String imageUrl = activity instanceof ChatActivity ? ((ChatActivity) activity).getProfileImageUrl() : null;
                 if (imageUrl != null && !imageUrl.isEmpty()) {
@@ -80,10 +81,9 @@ public class Profile {
                 uploadBtn.setOnClickListener(v -> {
                     if (activity instanceof ChatActivity) {
                         ((ChatActivity) activity).startImagePicker();
-                        // Остаемся на текущем экране
                     }
                 });
-                back.setOnClickListener(v -> bottomSheet.switchSheet(R.layout.profile, null, true, R.anim.slide_out_right, R.anim.slide_in_left));
+                back.setOnClickListener(v -> bottomSheets.switchSheet(R.layout.profile, null, true, R.anim.slide_out_right, R.anim.slide_in_left));
             } else if (layoutId == R.layout.profile_bio) {
                 EditText bioEditText = view.findViewById(R.id.bio_edit_text);
                 View saveBtn = view.findViewById(R.id.save_btn);
@@ -103,11 +103,11 @@ public class Profile {
                     } else {
                         if (activity instanceof ChatActivity) {
                             ((ChatActivity) activity).updateProfileBio(bio);
-                            bottomSheet.switchSheet(R.layout.profile, null, true, R.anim.slide_out_right, R.anim.slide_in_left);
+                            bottomSheets.switchSheet(R.layout.profile, null, true, R.anim.slide_out_right, R.anim.slide_in_left);
                         }
                     }
                 });
-                back.setOnClickListener(v -> bottomSheet.switchSheet(R.layout.profile, null, true, R.anim.slide_out_right, R.anim.slide_in_left));
+                back.setOnClickListener(v -> bottomSheets.switchSheet(R.layout.profile, null, true, R.anim.slide_out_right, R.anim.slide_in_left));
             } else if (layoutId == R.layout.profile) {
                 View editTagBtn = view.findViewById(R.id.edit_tag);
                 View editImageBtn = view.findViewById(R.id.edit_image);
@@ -127,45 +127,84 @@ public class Profile {
                     return;
                 }
 
-                editTagBtn.setOnClickListener(v -> bottomSheet.switchSheet(R.layout.profile_tag, null, true, R.anim.slide_out_left, R.anim.slide_in_right));
-                editImageBtn.setOnClickListener(v -> bottomSheet.switchSheet(R.layout.profile_image, null, true, R.anim.slide_out_left, R.anim.slide_in_right));
-                editBioBtn.setOnClickListener(v -> bottomSheet.switchSheet(R.layout.profile_bio, null, true, R.anim.slide_out_left, R.anim.slide_in_right));
-                close.setOnClickListener(v -> bottomSheet.hide(null));
+                editTagBtn.setOnClickListener(v -> bottomSheets.switchSheet(R.layout.profile_tag, null, true, R.anim.slide_out_left, R.anim.slide_in_right));
+                editImageBtn.setOnClickListener(v -> bottomSheets.switchSheet(R.layout.profile_image, null, true, R.anim.slide_out_left, R.anim.slide_in_right));
+                editBioBtn.setOnClickListener(v -> bottomSheets.switchSheet(R.layout.profile_bio, null, true, R.anim.slide_out_left, R.anim.slide_in_right));
+                close.setOnClickListener(v -> bottomSheets.hide(null));
                 logoutBtn.setOnClickListener(v -> {
-                    RegisterContext.logout(activity);
-                    if (activity instanceof ChatActivity) {
-                        ((ChatActivity) activity).resetProfileData();
-                        bottomSheet.hide(() -> {
-                            Toast.makeText(activity, "Выход выполнен", Toast.LENGTH_SHORT).show();
-                            ((ChatActivity) activity).initializeUI();
-                            ((ChatActivity) activity).autorizations(null);
-                            ((ChatActivity) activity).loadMessages();
-                        });
+                    if (confirmationSheet.isShowing()) {
+                        Log.w(TAG, "ConfirmationBottomSheet уже отображается, игнорируем повторное нажатие");
+                        return;
                     }
+                    confirmationSheet.show(
+                            "", "", "Logout", "user_logout",
+                            () -> {
+                                try {
+                                    RegisterContext.logout(activity);
+                                    if (activity instanceof ChatActivity && !activity.isFinishing()) {
+                                        ((ChatActivity) activity).resetProfileData();
+                                        confirmationSheet.hide(() -> {
+                                            bottomSheets.hide(() -> {
+                                                if (!activity.isFinishing()) {
+                                                    Toast.makeText(activity, "Выход выполнен", Toast.LENGTH_SHORT).show();
+                                                    ((ChatActivity) activity).initializeUI();
+                                                    ((ChatActivity) activity).autorizations(null);
+                                                    ((ChatActivity) activity).loadMessages();
+                                                }
+                                            });
+                                        });
+                                        Log.d(TAG, "Выход из аккаунта подтверждён");
+                                    }
+                                } catch (Exception e) {
+                                    Log.e(TAG, "Logout error: " + e.getMessage(), e);
+                                    if (!activity.isFinishing()) {
+                                        Toast.makeText(activity, "Ошибка выхода: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                                    }
+                                }
+                            },
+                            () -> {
+                                confirmationSheet.hide(null);
+                                Log.d(TAG, "Выход из аккаунта отменён");
+                            }
+                    );
                 });
                 deleteBtn.setOnClickListener(v -> {
-                    RegisterContext.deleteAccount(activity, new RegisterContext.Callback<Void>() {
-                        @Override
-                        public void onSuccess(Void result) {
-                            if (activity instanceof ChatActivity) {
-                                ((ChatActivity) activity).resetProfileData();
-                                bottomSheet.hide(() -> {
-                                    Toast.makeText(activity, "Аккаунт удалён", Toast.LENGTH_SHORT).show();
-                                    ((ChatActivity) activity).initializeUI();
-                                    ((ChatActivity) activity).autorizations(null);
-                                    ((ChatActivity) activity).loadMessages();
-                                });
-                            }
-                        }
+                    confirmationSheet.show(
+                            "", // Не используется для DeleteAccount
+                            "", // Не используется для DeleteAccount
+                            "DeleteAccount",
+                            "user_delete",
+                            () -> {
+                                RegisterContext.deleteAccount(activity, new RegisterContext.Callback<Void>() {
+                                    @Override
+                                    public void onSuccess(Void result) {
+                                        if (activity instanceof ChatActivity) {
+                                            ((ChatActivity) activity).resetProfileData();
+                                            // Последовательное закрытие листов
+                                            confirmationSheet.hide(() -> bottomSheets.hide(() -> {
+                                                Toast.makeText(activity, "Аккаунт удалён", Toast.LENGTH_SHORT).show();
+                                                ((ChatActivity) activity).initializeUI();
+                                                ((ChatActivity) activity).autorizations(null);
+                                                ((ChatActivity) activity).loadMessages();
+                                            }));
+                                            Log.d(TAG, "Удаление аккаунта подтверждено");
+                                        }
+                                    }
 
-                        @Override
-                        public void onError(String error) {
-                            Toast.makeText(activity, "Ошибка удаления: " + error, Toast.LENGTH_LONG).show();
-                            Log.e(TAG, "Delete account error: " + error);
-                        }
-                    });
+                                    @Override
+                                    public void onError(String error) {
+                                        Toast.makeText(activity, "Ошибка удаления: " + error, Toast.LENGTH_LONG).show();
+                                        Log.e(TAG, "Delete account error: " + error);
+                                    }
+                                });
+                            },
+                            () -> {
+                                confirmationSheet.hide(null); // Закрываем лист при отмене
+                                Log.d(TAG, "Удаление аккаунта отменено");
+                            }
+                    );
                 });
-                continueProfileBtn.setOnClickListener(v -> bottomSheet.hide(() -> Toast.makeText(activity, "Профиль сохранён", Toast.LENGTH_SHORT).show()));
+                continueProfileBtn.setOnClickListener(v -> bottomSheets.hide(() -> Toast.makeText(activity, "Профиль сохранён", Toast.LENGTH_SHORT).show()));
             } else {
                 Log.w(TAG, "Unknown layoutId: " + layoutId);
                 Toast.makeText(activity, "Неизвестный экран профиля", Toast.LENGTH_SHORT).show();
