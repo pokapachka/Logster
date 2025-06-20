@@ -76,7 +76,11 @@ public class Authorization {
             bottomSheet.hide(() -> bottomSheet.switchSheet(R.layout.registration, null, false, 0, 0));
         });
         forgotPasswordButton.setOnClickListener(v -> {
-            Toast.makeText(activity, "Функция восстановления пароля пока не реализована", Toast.LENGTH_SHORT).show();
+            Log.d(TAG, "Переход на экран восстановления пароля");
+            bottomSheet.hide(() -> {
+                ForgotPassword forgotPassword = new ForgotPassword(activity);
+                forgotPassword.show();
+            });
         });
         bottomSheet.show();
     }

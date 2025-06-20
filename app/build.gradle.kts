@@ -30,6 +30,18 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
+    packaging {
+        resources {
+            excludes += setOf(
+                "/META-INF/{AL2.0,LGPL2.1}",
+                "/META-INF/NOTICE.md",
+                "/META-INF/LICENSE.md",
+                "/META-INF/DEPENDENCIES",
+                "/META-INF/INDEX.LIST"
+            )
+        }
+    }
 }
 
 dependencies {
@@ -60,6 +72,9 @@ dependencies {
 
     // AndroidX core
     implementation(libs.core)
+
+    implementation("com.sun.mail:android-mail:1.6.7")
+    implementation("com.sun.mail:android-activation:1.6.7")
 
     // Тестирование
     testImplementation(libs.junit)

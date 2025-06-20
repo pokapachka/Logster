@@ -832,30 +832,27 @@ public class RegisterContext {
             protected Boolean doInBackground(Void... voids) {
                 try {
                     OkHttpClient client = new OkHttpClient();
-                    String encodedEmail = URLEncoder.encode(email, "UTF-8");
-                    String encodedUsername = URLEncoder.encode(username, "UTF-8");
-                    String query = CHECK_USER_URL + "&or=(email.eq." + encodedEmail + ",username.eq." + encodedUsername + ")";
+                    String query = BASE_URL + "/rest/v1/profiles?select=email,username,id&or=(email.eq." + email + ",username.eq." + username + ")";
                     Log.d(TAG, "CheckUser Query: " + query);
                     Request request = new Request.Builder()
                             .url(query)
                             .header("Authorization", ANON_KEY)
                             .header("apikey", ANON_KEY)
-                            .header("Content-Type", "application/json")
-                            .get()
                             .build();
                     Response response = client.newCall(request).execute();
                     String responseBody = response.body() != null ? response.body().string() : "";
                     Log.d(TAG, "CheckUser Response: Code " + response.code() + ", Body: " + responseBody);
-                    if (!response.isSuccessful()) {
-                        error = "Failed to check user: HTTP " + response.code();
-                        return null;
+                    if (response.isSuccessful()) {
+                        // Проверяем, пустой ли ответ
+                        return responseBody.equals("[]"); // Если пустой массив, пользователь НЕ существует
+                    } else {
+                        error = "HTTP error: " + response.code();
+                        return false;
                     }
-                    JSONArray users = new JSONArray(responseBody);
-                    return users.length() == 0;
                 } catch (Exception e) {
                     error = "Error checking user: " + e.getMessage();
-                    Log.e(TAG, "Check user error", e);
-                    return null;
+                    Log.e(TAG, error, e);
+                    return false;
                 }
             }
 
@@ -931,6 +928,83 @@ public class RegisterContext {
                         callback.onError("Error processing JSON: " + e.getMessage());
                         Log.e(TAG, "JSON processing error", e);
                     }
+                }
+            }
+        }.execute();
+    }
+
+    public static void updatePassword(Context context, String email, String newPassword, Callback<String> callback) {
+        new AsyncTask<Void, Void, String>() {
+            private String error;
+
+            @Override
+            protected String doInBackground(Void... voids) {
+                try {
+                    OkHttpClient client = new OkHttpClient();
+
+                    // Шаг 1: Получить user_id по email
+                    String encodedEmail = URLEncoder.encode(email, "UTF-8");
+                    String query = REST_URL + "?select=id&email=eq." + encodedEmail;
+                    Request userIdRequest = new Request.Builder()
+                            .url(query)
+                            .header("Authorization", TOKEN)
+                            .header("apikey", ANON_KEY)
+                            .header("Content-Type", "application/json")
+                            .get()
+                            .build();
+                    Response userIdResponse = client.newCall(userIdRequest).execute();
+                    String userIdResponseBody = userIdResponse.body() != null ? userIdResponse.body().string() : "";
+                    Log.d(TAG, "FetchUserId Response: Code " + userIdResponse.code() + ", Body: " + userIdResponseBody);
+
+                    if (!userIdResponse.isSuccessful()) {
+                        error = "Failed to fetch user ID: HTTP " + userIdResponse.code();
+                        return null;
+                    }
+
+                    JSONArray userArray = new JSONArray(userIdResponseBody);
+                    if (userArray.length() == 0) {
+                        error = "User not found for email: " + email;
+                        return null;
+                    }
+
+                    String userId = userArray.getJSONObject(0).getString("id");
+
+                    // Шаг 2: Обновить пароль через Admin API
+                    String url = BASE_URL + "/auth/v1/admin/users/" + userId;
+                    JSONObject json = new JSONObject();
+                    json.put("password", newPassword);
+
+                    RequestBody body = RequestBody.create(json.toString(), MediaType.parse("application/json"));
+                    Request request = new Request.Builder()
+                            .url(url)
+                            .put(body)
+                            .header("Authorization", TOKEN)
+                            .header("apikey", ANON_KEY)
+                            .build();
+
+                    Response response = client.newCall(request).execute();
+                    String responseBody = response.body() != null ? response.body().string() : "";
+                    Log.d(TAG, "UpdatePassword Response: Code " + response.code() + ", Body: " + responseBody);
+
+                    if (response.isSuccessful()) {
+                        return "Password updated successfully";
+                    } else {
+                        error = "HTTP error: " + response.code() + ", " + responseBody;
+                        return null;
+                    }
+                } catch (Exception e) {
+                    error = "Error updating password: " + e.getMessage();
+                    Log.e(TAG, error, e);
+                    return null;
+                }
+            }
+
+            @Override
+            protected void onPostExecute(String result) {
+                if (error != null) {
+                    callback.onError(error);
+                } else {
+                    callback.onSuccess(result);
                 }
             }
         }.execute();
