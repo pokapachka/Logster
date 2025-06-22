@@ -21,14 +21,14 @@
         android:textColor="#FFFFFF"
         android:textStyle="bold" />
 
-<!--    <ImageView-->
-<!--        android:id="@+id/settings_body"-->
-<!--        android:layout_width="25dp"-->
-<!--        android:layout_height="16dp"-->
-<!--        android:layout_alignParentEnd="true"-->
-<!--        android:layout_marginTop="20dp"-->
-<!--        android:layout_marginEnd="20dp"-->
-<!--        android:background="@drawable/settingwidget"/>-->
+    <ImageView
+        android:id="@+id/settings_body"
+        android:layout_width="35dp"
+        android:layout_height="35dp"
+        android:layout_alignParentEnd="true"
+        android:layout_marginTop="20dp"
+        android:layout_marginEnd="20dp"
+        android:background="@drawable/metric"/>
 
     <!-- Дата записи метрики -->
     <TextView

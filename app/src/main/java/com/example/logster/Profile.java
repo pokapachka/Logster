@@ -168,43 +168,59 @@ public class Profile {
                             }
                     );
                 });
+
                 deleteBtn.setOnClickListener(v -> {
+                    if (confirmationSheet.isShowing()) {
+                        Log.w(TAG, "ConfirmationBottomSheet уже отображается, игнорируем повторное нажатие");
+                        return;
+                    }
+                    Log.d(TAG, "Нажата кнопка удаления аккаунта");
                     confirmationSheet.show(
-                            "", // Не используется для DeleteAccount
-                            "", // Не используется для DeleteAccount
-                            "DeleteAccount",
-                            "user_delete",
+                            "", "", "DeleteAccount", "user_delete",
                             () -> {
                                 RegisterContext.deleteAccount(activity, new RegisterContext.Callback<Void>() {
                                     @Override
                                     public void onSuccess(Void result) {
-                                        if (activity instanceof ChatActivity) {
+                                        if (activity instanceof ChatActivity && !activity.isFinishing()) {
                                             ((ChatActivity) activity).resetProfileData();
-                                            // Последовательное закрытие листов
-                                            confirmationSheet.hide(() -> bottomSheets.hide(() -> {
-                                                Toast.makeText(activity, "Аккаунт удалён", Toast.LENGTH_SHORT).show();
-                                                ((ChatActivity) activity).initializeUI();
-                                                ((ChatActivity) activity).autorizations(null);
-                                                ((ChatActivity) activity).loadMessages();
-                                            }));
+                                            confirmationSheet.hide(() -> {
+                                                bottomSheets.hide(() -> {
+                                                    if (!activity.isFinishing()) {
+                                                        Toast.makeText(activity, "Аккаунт удалён", Toast.LENGTH_SHORT).show();
+                                                        ((ChatActivity) activity).initializeUI();
+                                                        ((ChatActivity) activity).autorizations(null);
+                                                        ((ChatActivity) activity).loadMessages();
+                                                    }
+                                                });
+                                            });
                                             Log.d(TAG, "Удаление аккаунта подтверждено");
                                         }
                                     }
 
                                     @Override
                                     public void onError(String error) {
-                                        Toast.makeText(activity, "Ошибка удаления: " + error, Toast.LENGTH_LONG).show();
+                                        if (!activity.isFinishing()) {
+                                            Toast.makeText(activity, "Ошибка удаления: " + error, Toast.LENGTH_LONG).show();
+                                        }
                                         Log.e(TAG, "Delete account error: " + error);
+                                        confirmationSheet.hide(null); // Закрываем лист при ошибке
                                     }
                                 });
                             },
                             () -> {
-                                confirmationSheet.hide(null); // Закрываем лист при отмене
+                                confirmationSheet.hide(null);
                                 Log.d(TAG, "Удаление аккаунта отменено");
                             }
                     );
                 });
-                continueProfileBtn.setOnClickListener(v -> bottomSheets.hide(() -> Toast.makeText(activity, "Профиль сохранён", Toast.LENGTH_SHORT).show()));
+                continueProfileBtn.setOnClickListener(v -> {
+                    // Данные уже сохранены в SharedPreferences и на сервере
+                    bottomSheets.hide(() -> {
+                        Toast.makeText(activity, "Профиль сохранён", Toast.LENGTH_SHORT).show();
+                        // Открываем profile_user с анимацией снизу вверх
+                        bottomSheets.switchSheet(R.layout.profile_user, null, false, 0, 0);
+                    });
+                });
             } else {
                 Log.w(TAG, "Unknown layoutId: " + layoutId);
                 Toast.makeText(activity, "Неизвестный экран профиля", Toast.LENGTH_SHORT).show();

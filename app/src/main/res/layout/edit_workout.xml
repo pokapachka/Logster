@@ -32,14 +32,13 @@
             android:src="@drawable/arrowdown"/>
     </FrameLayout>
 
-    <!-- Заголовок -->
     <RelativeLayout
         android:id="@+id/log_btn"
         android:layout_width="105dp"
-        android:layout_alignParentEnd="true"
+        android:layout_toLeftOf="@+id/delete_workouts"
         android:layout_height="wrap_content"
         android:layout_marginTop="30dp"
-        android:layout_marginEnd="20dp"
+        android:layout_marginEnd="10dp"
         android:background="@drawable/enter_btn2">
 
         <TextView
@@ -55,6 +54,16 @@
             android:textSize="15sp"
             android:textStyle="bold" />
     </RelativeLayout>
+
+    <ImageView
+        android:id="@+id/delete_workouts"
+        android:layout_width="47dp"
+        android:layout_height="47dp"
+        android:background="@drawable/delete_workouts"
+        android:layout_alignParentEnd="true"
+        android:layout_marginTop="27dp"
+        android:layout_marginEnd="15dp"
+        android:onClick="onDeleteWorkoutClicked"/>
 
     <TextView
         android:id="@+id/title"
@@ -86,8 +95,9 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_below="@id/description"
-        android:layout_marginTop="0dp"
         android:orientation="vertical"
+        android:layout_marginTop="30dp"
+
         android:clipChildren="false"
         android:clipToPadding="false">
 

@@ -102,6 +102,7 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
     private ExercisesAdapter exercisesAdapter;
     private PersonalWorkoutData personalWorkoutData;
     private ConfirmationBottomSheet confirmationSheet;
+    private Map<String, Long> workoutCountCache = new HashMap<>();
     public abstract class WorkoutProgramItem {
         public static final int TYPE_HEADER = 0;
         public static final int TYPE_EXERCISE = 1;
@@ -243,6 +244,7 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
             private boolean isOverFolder = false;
             private Folder targetFolder = null;
             private RecyclerView.ViewHolder targetHolder = null;
+            private boolean isSwiping = false;
 
             @Override
             public boolean onMove(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder, @NonNull RecyclerView.ViewHolder target) {
@@ -303,6 +305,13 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
                     return;
                 }
 
+                if (isSwiping) {
+                    Log.w("ItemTouchHelper", "Свайп игнорируется, другой свайп в процессе: pos=" + pos);
+                    combinedAdapter.notifyItemChanged(pos);
+                    return;
+                }
+                isSwiping = true;
+
                 Object item = combinedAdapter.items.get(pos);
                 Log.d("ItemTouchHelper", "Свайп: тип=" + item.getClass().getSimpleName());
 
@@ -340,18 +349,33 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
                                             if (folderPos != -1) {
                                                 combinedAdapter.notifyItemChanged(folderPos);
                                             }
+                                            workoutCountCache.clear();
                                             updateMainItems();
+                                            combinedAdapter.updateData(folders, workouts, bodyMetrics, currentFolderName);
                                             saveItems();
+                                            isSwiping = false;
                                             Log.d("ItemTouchHelper", "Удалено из папки: ID=" + finalItemId + ", папка=" + currentFolderName);
                                         },
                                         () -> {
                                             Log.d("ItemTouchHelper", "Отменено действие: ID=" + finalItemId);
-                                            combinedAdapter.notifyItemChanged(pos);
+                                            viewHolder.itemView.postDelayed(() -> {
+                                                combinedAdapter.notifyItemChanged(pos);
+                                                isSwiping = false;
+                                            }, 100); // Задержка для синхронизации анимации
                                         }
                                 );
+                            } else {
+                                viewHolder.itemView.postDelayed(() -> {
+                                    combinedAdapter.notifyItemChanged(pos);
+                                    isSwiping = false;
+                                }, 100);
                             }
                         } else {
                             Log.w("ItemTouchHelper", "Папка не найдена: " + currentFolderName);
+                            viewHolder.itemView.postDelayed(() -> {
+                                combinedAdapter.notifyItemChanged(pos);
+                                isSwiping = false;
+                            }, 100);
                         }
                     } else {
                         if (item instanceof Folder) {
@@ -366,12 +390,17 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
                                         combinedAdapter.items.remove(pos);
                                         combinedAdapter.notifyItemRemoved(pos);
                                         updateMainItems();
+                                        combinedAdapter.updateData(folders, workouts, bodyMetrics, currentFolderName);
                                         saveItems();
+                                        isSwiping = false;
                                         Log.d("ItemTouchHelper", "Папка удалена: " + folder.name);
                                     },
                                     () -> {
                                         Log.d("ItemTouchHelper", "Отменено действие: " + folder.name);
-                                        combinedAdapter.notifyItemChanged(pos);
+                                        viewHolder.itemView.postDelayed(() -> {
+                                            combinedAdapter.notifyItemChanged(pos);
+                                            isSwiping = false;
+                                        }, 100);
                                     }
                             );
                         } else if (item instanceof Workout) {
@@ -386,13 +415,19 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
                                         removeWorkoutFromSchedules(workout.id);
                                         combinedAdapter.items.remove(pos);
                                         combinedAdapter.notifyItemRemoved(pos);
+                                        workoutCountCache.clear();
                                         updateMainItems();
+                                        combinedAdapter.updateData(folders, workouts, bodyMetrics, currentFolderName);
                                         saveItems();
+                                        isSwiping = false;
                                         Log.d("ItemTouchHelper", "Тренировка удалена: " + workout.name);
                                     },
                                     () -> {
                                         Log.d("ItemTouchHelper", "Отменено действие: " + workout.name);
-                                        combinedAdapter.notifyItemChanged(pos);
+                                        viewHolder.itemView.postDelayed(() -> {
+                                            combinedAdapter.notifyItemChanged(pos);
+                                            isSwiping = false;
+                                        }, 100);
                                     }
                             );
                         } else if (item instanceof BodyMetric) {
@@ -407,19 +442,27 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
                                         combinedAdapter.items.remove(pos);
                                         combinedAdapter.notifyItemRemoved(pos);
                                         updateMainItems();
+                                        combinedAdapter.updateData(folders, workouts, bodyMetrics, currentFolderName);
                                         saveItems();
+                                        isSwiping = false;
                                         Log.d("ItemTouchHelper", "Метрика удалена: " + metric.type);
                                     },
                                     () -> {
                                         Log.d("ItemTouchHelper", "Отменено действие: " + metric.type);
-                                        combinedAdapter.notifyItemChanged(pos);
+                                        viewHolder.itemView.postDelayed(() -> {
+                                            combinedAdapter.notifyItemChanged(pos);
+                                            isSwiping = false;
+                                        }, 100);
                                     }
                             );
                         }
                     }
                 } catch (Exception e) {
                     Log.e("ItemTouchHelper", "Ошибка свайпа: " + e.getMessage(), e);
-                    combinedAdapter.notifyItemChanged(pos);
+                    viewHolder.itemView.postDelayed(() -> {
+                        combinedAdapter.notifyItemChanged(pos);
+                        isSwiping = false;
+                    }, 100);
                 }
             }
 
@@ -823,11 +866,14 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
     }
 
     private void removeWorkoutFromSchedules(String workoutId) {
-        weeklySchedule.entrySet().removeIf(entry -> entry.getValue().equals(workoutId));
-        specificDates.entrySet().removeIf(entry -> entry.getValue().isEmpty());
+        // Удаляем workoutId из списков в specificDates
         for (List<String> workoutIds : specificDates.values()) {
             workoutIds.remove(workoutId);
         }
+        // Удаляем пустые списки
+        specificDates.entrySet().removeIf(entry -> entry.getValue().isEmpty());
+        // Удаляем из weeklySchedule (для обратной совместимости)
+        weeklySchedule.entrySet().removeIf(entry -> entry.getValue().equals(workoutId));
         saveWeeklySchedule();
         saveSpecificDates();
         Log.d("MainActivity", "Тренировка удалена из расписания: " + workoutId);
@@ -983,10 +1029,27 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
         // Собираем дни недели из weeklySchedule
         for (Map.Entry<DayOfWeek, String> entry : weeklySchedule.entrySet()) {
             if (entry.getValue().equals(workoutId)) {
-                String dayName = entry.getKey().getDisplayName(java.time.format.TextStyle.FULL, new Locale("ru"))
+                String dayName = entry.getKey().getDisplayName(TextStyle.FULL, new Locale("ru"))
                         .substring(0, 1).toUpperCase() +
-                        entry.getKey().getDisplayName(java.time.format.TextStyle.FULL, new Locale("ru")).substring(1).toLowerCase();
+                        entry.getKey().getDisplayName(TextStyle.FULL, new Locale("ru")).substring(1).toLowerCase();
                 workoutDays.add(dayName);
+            }
+        }
+
+        // Собираем дни недели из specificDates
+        for (Map.Entry<String, List<String>> entry : specificDates.entrySet()) {
+            String dateStr = entry.getKey();
+            List<String> workoutIds = entry.getValue();
+            if (workoutIds.contains(workoutId)) {
+                try {
+                    LocalDate date = LocalDate.parse(dateStr);
+                    String dayName = date.getDayOfWeek().getDisplayName(TextStyle.FULL, new Locale("ru"))
+                            .substring(0, 1).toUpperCase() +
+                            date.getDayOfWeek().getDisplayName(TextStyle.FULL, new Locale("ru")).substring(1).toLowerCase();
+                    workoutDays.add(dayName);
+                } catch (DateTimeParseException e) {
+                    Log.e("MainActivity", "Ошибка разбора даты в getAllWorkoutDays: " + dateStr, e);
+                }
             }
         }
 
@@ -1194,12 +1257,17 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
                 Iterator<String> keys = json.keys();
                 while (keys.hasNext()) {
                     String key = keys.next();
-                    JSONArray workoutIdsJson = json.getJSONArray(key);
-                    List<String> workoutIds = new ArrayList<>();
-                    for (int i = 0; i < workoutIdsJson.length(); i++) {
-                        workoutIds.add(workoutIdsJson.getString(i));
+                    try {
+                        LocalDate.parse(key); // Проверяем валидность даты
+                        JSONArray workoutIdsJson = json.getJSONArray(key);
+                        List<String> workoutIds = new ArrayList<>();
+                        for (int i = 0; i < workoutIdsJson.length(); i++) {
+                            workoutIds.add(workoutIdsJson.getString(i));
+                        }
+                        specificDates.put(key, workoutIds);
+                    } catch (DateTimeParseException e) {
+                        Log.w("MainActivity", "Невалидная дата в specificDates: " + key + ", пропущена");
                     }
-                    specificDates.put(key, workoutIds);
                 }
                 Log.d("MainActivity", "Загружены конкретные даты: " + specificDates.size());
             } catch (JSONException e) {
@@ -1220,30 +1288,30 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
     private void syncWorkoutDates() {
         LocalDate today = LocalDate.now();
         LocalDate endDate = today.plusYears(1);
+
+        // Очищаем workout.dates, чтобы пересинхронизировать
         for (Workout workout : workouts) {
             workout.dates.clear();
         }
 
-        // Добавляем даты из specificDates
+        // Добавляем даты из specificDates (только записанные тренировки)
         for (Map.Entry<String, List<String>> entry : specificDates.entrySet()) {
             String dateStr = entry.getKey();
             List<String> workoutIds = entry.getValue();
             try {
                 LocalDate date = LocalDate.parse(dateStr);
-                if (!date.isBefore(today)) {
-                    for (String workoutId : workoutIds) {
-                        workouts.stream()
-                                .filter(w -> w.id.equals(workoutId))
-                                .findFirst()
-                                .ifPresent(workout -> workout.addDate(dateStr));
-                    }
+                for (String workoutId : workoutIds) {
+                    workouts.stream()
+                            .filter(w -> w.id.equals(workoutId))
+                            .findFirst()
+                            .ifPresent(workout -> workout.addDate(dateStr));
                 }
             } catch (Exception e) {
                 Log.e("MainActivity", "Ошибка разбора даты: " + dateStr, e);
             }
         }
 
-        // Добавляем еженедельные даты
+        // Добавляем запланированные даты из weeklySchedule в workout.dates (но не в specificDates)
         for (Map.Entry<DayOfWeek, String> entry : weeklySchedule.entrySet()) {
             DayOfWeek dayOfWeek = entry.getKey();
             String workoutId = entry.getValue();
@@ -1251,23 +1319,16 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
             LocalDate currentDate = today.with(TemporalAdjusters.nextOrSame(dayOfWeek));
             while (!currentDate.isAfter(endDate)) {
                 String dateStr = currentDate.format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE);
-                List<String> specificWorkoutIds = specificDates.getOrDefault(dateStr, null);
-                // Добавляем только если дата не переопределена в specificDates или содержит workoutId
-                if (specificWorkoutIds == null || specificWorkoutIds.contains(workoutId)) {
-                    workouts.stream()
-                            .filter(w -> w.id.equals(workoutId))
-                            .findFirst()
-                            .ifPresent(workout -> workout.addDate(dateStr));
-                    // Обновляем specificDates только если список пустой
-                    if (specificWorkoutIds == null) {
-                        specificDates.put(dateStr, new ArrayList<>(Collections.singletonList(workoutId)));
-                    }
-                }
+                workouts.stream()
+                        .filter(w -> w.id.equals(workoutId))
+                        .findFirst()
+                        .ifPresent(workout -> workout.addDate(dateStr));
                 currentDate = currentDate.plusWeeks(1);
             }
         }
+
         saveWorkouts();
-        saveSpecificDates();
+        // saveSpecificDates() не вызываем, так как specificDates не изменился
         Log.d("MainActivity", "Синхронизированы даты тренировок");
     }
 
@@ -1524,30 +1585,29 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
                             workouts.add(newWorkout);
                         }
 
-                        // Обновляем weeklySchedule
+                        // Добавляем тренировку в specificDates для выбранных дней
+                        LocalDate today = LocalDate.now();
+                        LocalDate endDate = today.plusYears(1);
                         for (String dayName : selectedDays) {
                             DayOfWeek dayOfWeek = DAY_OF_WEEK_MAP.get(dayName.toUpperCase());
                             if (dayOfWeek != null) {
-                                weeklySchedule.put(dayOfWeek, workoutId);
-                                Log.d("MainActivity", "Добавлен день " + dayName + " в weeklySchedule для тренировки " + workoutId);
-                            }
-                        }
-
-                        // Удаляем тренировку из weeklySchedule для дней, которые не выбраны
-                        for (String dayName : dayNames) {
-                            if (!selectedDays.contains(dayName)) {
-                                DayOfWeek dayOfWeek = DAY_OF_WEEK_MAP.get(dayName.toUpperCase());
-                                String currentWorkoutId = weeklySchedule.get(dayOfWeek);
-                                if (currentWorkoutId != null && currentWorkoutId.equals(workoutId)) {
-                                    weeklySchedule.remove(dayOfWeek);
-                                    Log.d("MainActivity", "Удалён день " + dayName + " из weeklySchedule для тренировки " + workoutId);
+                                LocalDate currentDate = today.with(TemporalAdjusters.nextOrSame(dayOfWeek));
+                                while (!currentDate.isAfter(endDate)) {
+                                    String dateStr = currentDate.format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE);
+                                    List<String> workoutIds = specificDates.getOrDefault(dateStr, new ArrayList<>());
+                                    if (!workoutIds.contains(workoutId)) {
+                                        workoutIds.add(workoutId);
+                                        specificDates.put(dateStr, workoutIds);
+                                        Log.d("MainActivity", "Добавлена тренировка " + workoutId + " на дату " + dateStr);
+                                    }
+                                    currentDate = currentDate.plusWeeks(1);
                                 }
                             }
                         }
 
                         // Сохраняем данные
                         saveWorkouts();
-                        saveWeeklySchedule();
+                        saveSpecificDates();
                         syncWorkoutDates();
                         updateMainItems();
                         combinedAdapter.updateData(folders, workouts, bodyMetrics, currentFolderName);
@@ -1578,11 +1638,15 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
             View mainTopLine = newView.findViewById(R.id.main_top_line);
             View mainBottomLine = newView.findViewById(R.id.main_bottom_line);
             ImageView centerArrow = newView.findViewById(R.id.center_arrow);
+            TextView unitTextView = newView.findViewById(R.id.type_metric);
 
             if (data instanceof String) {
                 com.example.logster.AddBodyMetric.setupNumberPicker(
                         mainScrollView, mainValueList, mainTopLine,
-                        mainBottomLine, centerArrow, (String) data);
+                        mainBottomLine, centerArrow, (String) data, unitTextView
+                );
+            } else {
+                Log.e(TAG, "Data is not a String for add_metric2: " + data);
             }
         }  else if (layoutId == R.layout.edit_workout) {
             TextView titleTextView = newView.findViewById(R.id.title);
@@ -1890,12 +1954,16 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
                 String height = heightEt.getText().toString().trim();
                 if (!height.isEmpty()) {
                     personalWorkoutData.setHeight(height);
+
                     switchSheet(R.layout.add_p_workout5, null, true, R.anim.slide_out_left, R.anim.slide_in_right);
+                    hideKeyboard();
                 } else {
                     Toast.makeText(this, "Введите рост", Toast.LENGTH_SHORT).show();
                 }
             });
+
             backBtn.setOnClickListener(v -> switchSheet(R.layout.add_p_workout3, null, true, R.anim.slide_out_right, R.anim.slide_in_left));
+            hideKeyboard();
         } else if (layoutId == R.layout.add_p_workout5) {
             EditText weightEt = newView.findViewById(R.id.weight_et);
             View continueBtn = newView.findViewById(R.id.continue_p5);
@@ -1969,6 +2037,7 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
             homeBtn.setOnClickListener(nextListener);
             backBtn.setOnClickListener(v -> switchSheet(R.layout.add_p_workout7, null, true, R.anim.slide_out_right, R.anim.slide_in_left));
         } else if (layoutId == R.layout.add_p_workout9) {
+            // Код для add_p_workout9 остаётся без изменений, кроме создания программы
             int[] dayIds = {R.id.monday, R.id.tuesday, R.id.wednesday, R.id.thursday, R.id.friday, R.id.saturday, R.id.sunday};
             String[] dayNames = {"Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"};
             View createBtn = newView.findViewById(R.id.create);
@@ -1978,7 +2047,6 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
 
             TextView[] dayTextViews = new TextView[dayIds.length];
 
-            // Проверка на null
             if (createBtn == null || backBtn == null || countDayLayout == null || countDayTextView == null) {
                 Log.e("MainActivity", "One or more UI elements in add_p_workout9 are null");
                 Toast.makeText(this, "Ошибка загрузки интерфейса", Toast.LENGTH_SHORT).show();
@@ -2031,7 +2099,6 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
                         }
                     }
 
-                    // Упрощенная логика для кнопки "Создать"
                     createBtn.setEnabled(selectedCount > 0);
                     updateCreateButtonAnimation(createBtn, selectedCount > 0);
                 });
@@ -2045,7 +2112,6 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
                     return;
                 }
 
-                // Проверка обязательных полей
                 if (personalWorkoutData.getGoal() == null || personalWorkoutData.getFitnessLevel() == null ||
                         personalWorkoutData.getBodyPart() == null) {
                     Toast.makeText(this, "Заполните все параметры тренировки", Toast.LENGTH_SHORT).show();
@@ -2053,17 +2119,15 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
                     return;
                 }
 
-                // Генерируем программу
                 WorkoutProgramGenerator generator = new WorkoutProgramGenerator(personalWorkoutData);
-                List<WorkoutProgramGenerator.WorkoutExercise> program = generator.generateProgram();
+                WorkoutProgramGenerator.WorkoutProgram program = generator.generateProgram();
 
-                if (program.isEmpty()) {
+                if (program.getDailyWorkouts().isEmpty()) {
                     Log.w("MainActivity", "Generated program is empty");
                     Toast.makeText(this, "Не удалось создать программу. Проверьте параметры.", Toast.LENGTH_SHORT).show();
                     return;
                 }
 
-                // Переходим на финальный экран без сохранения
                 switchSheet(R.layout.add_p_workout_final, program, true, R.anim.slide_out_left, R.anim.slide_in_right);
                 Toast.makeText(this, "Программа создана", Toast.LENGTH_SHORT).show();
             });
@@ -2086,11 +2150,10 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
                 return;
             }
 
-            if (data instanceof List) {
-                @SuppressWarnings("unchecked")
-                List<WorkoutProgramGenerator.WorkoutExercise> program = (List<WorkoutProgramGenerator.WorkoutExercise>) data;
+            if (data instanceof WorkoutProgramGenerator.WorkoutProgram) {
+                WorkoutProgramGenerator.WorkoutProgram program = (WorkoutProgramGenerator.WorkoutProgram) data;
 
-                if (program == null || program.isEmpty()) {
+                if (program.getDailyWorkouts() == null || program.getDailyWorkouts().isEmpty()) {
                     Log.e("MainActivity", "Program is null or empty");
                     Toast.makeText(this, "Программа не содержит упражнений", Toast.LENGTH_SHORT).show();
                     recyclerView.setVisibility(View.GONE);
@@ -2098,31 +2161,34 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
                 }
 
                 // Логирование для проверки данных
-                for (WorkoutProgramGenerator.WorkoutExercise exercise : program) {
-                    StringBuilder setsInfo = new StringBuilder();
-                    for (com.example.logster.Set set : exercise.getSets()) {
-                        setsInfo.append("Вес: ").append(set.getWeight()).append(", Повторений: ").append(set.getReps()).append("; ");
+                for (WorkoutProgramGenerator.DailyWorkout dailyWorkout : program.getDailyWorkouts()) {
+                    Log.d("MainActivity", "Day: " + dailyWorkout.getDayName() + ", Focus: " + dailyWorkout.getFocusMuscle() +
+                            ", Exercises: " + dailyWorkout.getExercises().size());
+                    for (WorkoutProgramGenerator.WorkoutExercise exercise : dailyWorkout.getExercises()) {
+                        StringBuilder setsInfo = new StringBuilder();
+                        for (com.example.logster.Set set : exercise.getSets()) {
+                            setsInfo.append("Вес: ").append(set.getWeight()).append(", Повторений: ").append(set.getReps()).append("; ");
+                        }
+                        Log.d("MainActivity", "Exercise: " + exercise.getExercise().getName() +
+                                ", Sets: " + setsInfo +
+                                ", Tags: " + String.join(", ", exercise.getExercise().getTags()));
                     }
-                    Log.d("MainActivity", "Exercise: " + exercise.getExercise().getName() +
-                            ", Sets: " + setsInfo +
-                            ", Tags: " + String.join(", ", exercise.getExercise().getTags()));
                 }
 
                 // Подготовка данных для адаптера
-                List<WorkoutProgramItem> items = prepareWorkoutItems(program, personalWorkoutData.getTrainingDays());
+                List<WorkoutProgramItem> items = prepareWorkoutItems(program.getDailyWorkouts());
                 recyclerView.setLayoutManager(new LinearLayoutManager(this));
                 recyclerView.setAdapter(new WorkoutExerciseAdapter(items));
                 recyclerView.setVisibility(View.VISIBLE);
 
                 String goal = personalWorkoutData.getGoal();
                 String fitnessLevel = personalWorkoutData.getFitnessLevel();
-                String bodyPart = personalWorkoutData.getBodyPart();
                 List<String> trainingDays = personalWorkoutData.getTrainingDays();
 
-                targetText.setText("Цель: " + (goal != null ? translateGoal(goal) : "Не указана"));
+                targetText.setText("Программа: " + program.getProgramName());
                 levelText.setText("Уровень: " + (fitnessLevel != null ? translateFitnessLevel(fitnessLevel) : "Не указан"));
                 daysText.setText("Дней в неделю: " + (trainingDays != null ? trainingDays.size() : 0));
-                areaText.setText("Целевая область: " + (bodyPart != null ? translateBodyPart(bodyPart) : "Не указана"));
+                areaText.setText("Целевая область: " + program.getProgramName());
 
                 createBtn.setOnClickListener(v -> {
                     if (personalWorkoutData.getTrainingDays().isEmpty()) {
@@ -2130,14 +2196,10 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
                         return;
                     }
 
-                    // Создаем папку и тренировки
-                    createProgramFolderAndWorkouts(program, personalWorkoutData.getTrainingDays());
-
-                    // Обновляем UI
+                    createProgramFolderAndWorkouts(program.getDailyWorkouts());
                     updateMainItems();
                     combinedAdapter.updateData(folders, workouts, bodyMetrics, currentFolderName);
-                    widgetSheet.hide(null);
-                    Toast.makeText(this, "Программа сохранена", Toast.LENGTH_SHORT).show();
+                    widgetSheet.hide(() -> Toast.makeText(this, "Программа сохранена", Toast.LENGTH_SHORT).show());
                 });
 
                 backBtn.setOnClickListener(v ->
@@ -2368,13 +2430,25 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
             if (!workoutIds.contains(workout.id)) {
                 workoutIds.add(workout.id);
                 specificDates.put(selectedDate, workoutIds);
+                workout.addDate(selectedDate);
+                Log.d("MainActivity", "Добавлена дата " + selectedDate + " для тренировки " + workout.name);
             }
-            workout.addDate(selectedDate);
         }
+        workoutCountCache.remove(workout.id); // Сбрасываем кэш для этой тренировки
 
+        // Сохраняем данные
         saveWorkouts();
         saveSpecificDates();
         syncWorkoutDates();
+
+        // Обновляем UI
+        updateMainItems();
+        combinedAdapter.updateData(folders, workouts, bodyMetrics, currentFolderName);
+        // Обновляем WorkoutAdapter, если он используется
+        if (workoutRecyclerView.getAdapter() instanceof WorkoutAdapter) {
+            ((WorkoutAdapter) workoutRecyclerView.getAdapter()).updateWorkouts(workouts);
+            Log.d("MainActivity", "WorkoutAdapter обновлён после записи тренировки");
+        }
 
         Toast.makeText(this, "Тренировка записана", Toast.LENGTH_SHORT).show();
 
@@ -2384,49 +2458,32 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
 
         Log.d("MainActivity", "Тренировка записана: " + selectedWorkoutName + " на дату " + selectedDate);
     }
+
     private Map<String, Integer> getUniqueWorkoutCountByDay() {
         Map<String, java.util.Set<String>> workoutNamesByDay = new HashMap<>();
         String[] days = {"Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"};
         for (String day : days) {
-            workoutNamesByDay.put(day, new java.util.HashSet<>());
+            workoutNamesByDay.put(day, new HashSet<>());
         }
 
         LocalDate today = LocalDate.now();
 
-        // Weekly schedule
-        for (Map.Entry<DayOfWeek, String> entry : weeklySchedule.entrySet()) {
-            DayOfWeek dayOfWeek = entry.getKey();
-            String workoutId = entry.getValue();
-            if (dayOfWeek == null || workoutId == null || workoutId.isEmpty()) continue;
-            String dayName = dayOfWeek.getDisplayName(TextStyle.FULL, new Locale("ru"))
-                    .substring(0, 1).toUpperCase() +
-                    dayOfWeek.getDisplayName(TextStyle.FULL, new Locale("ru")).substring(1).toLowerCase();
-            workouts.stream()
-                    .filter(w -> w.id.equals(workoutId))
-                    .findFirst()
-                    .ifPresent(workout -> workoutNamesByDay.get(dayName).add(workout.name));
-        }
-
-        // Specific dates
-        for (Map.Entry<String, List<String>> entry : specificDates.entrySet()) {
-            String dateStr = entry.getKey();
-            List<String> workoutIds = entry.getValue();
-            if (dateStr == null || workoutIds == null || workoutIds.isEmpty()) continue;
-            try {
-                LocalDate date = LocalDate.parse(dateStr);
-                if (!date.isBefore(today)) {
-                    String dayName = date.getDayOfWeek().getDisplayName(TextStyle.FULL, new Locale("ru"))
-                            .substring(0, 1).toUpperCase() +
-                            date.getDayOfWeek().getDisplayName(TextStyle.FULL, new Locale("ru")).substring(1).toLowerCase();
-                    for (String workoutId : workoutIds) {
-                        workouts.stream()
-                                .filter(w -> w.id.equals(workoutId))
-                                .findFirst()
-                                .ifPresent(workout -> workoutNamesByDay.get(dayName).add(workout.name));
+        // Собираем завершённые тренировки из completedDates
+        for (Workout workout : workouts) {
+            for (Map.Entry<String, List<CompletedExercise>> entry : workout.completedDates.entrySet()) {
+                String dateStr = entry.getKey();
+                try {
+                    LocalDate date = LocalDate.parse(dateStr);
+                    // Учитываем только завершённые тренировки до сегодняшнего дня
+                    if (!date.isAfter(today)) {
+                        String dayName = date.getDayOfWeek().getDisplayName(TextStyle.FULL, new Locale("ru"))
+                                .substring(0, 1).toUpperCase() +
+                                date.getDayOfWeek().getDisplayName(TextStyle.FULL, new Locale("ru")).substring(1).toLowerCase();
+                        workoutNamesByDay.get(dayName).add(workout.name);
                     }
+                } catch (Exception e) {
+                    Log.e("MainActivity", "Ошибка разбора даты в getUniqueWorkoutCountByDay: " + dateStr, e);
                 }
-            } catch (Exception e) {
-                Log.e("MainActivity", "Ошибка разбора даты: " + dateStr, e);
             }
         }
 
@@ -2436,6 +2493,7 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
             workoutCountByDay.put(day, workoutNamesByDay.get(day).size());
         }
 
+        Log.d("MainActivity", "getUniqueWorkoutCountByDay: " + workoutCountByDay);
         return workoutCountByDay;
     }
 
@@ -2552,81 +2610,40 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
             default: return "Не указано";
         }
     }
-    private List<WorkoutProgramItem> prepareWorkoutItems(List<WorkoutProgramGenerator.WorkoutExercise> program, List<String> trainingDays) {
+    private List<WorkoutProgramItem> prepareWorkoutItems(List<WorkoutProgramGenerator.DailyWorkout> dailyWorkouts) {
         List<WorkoutProgramItem> items = new ArrayList<>();
-        if (program == null || program.isEmpty() || trainingDays == null || trainingDays.isEmpty()) {
+        if (dailyWorkouts == null || dailyWorkouts.isEmpty()) {
+            Log.w("MainActivity", "Daily workouts are null or empty");
             return items;
         }
 
-        // Генерируем имя тренировки
-        String workoutName = "Персональная тренировка " + UUID.randomUUID().toString().substring(0, 8);
-
-        // Распределяем упражнения по дням
-        int daysCount = trainingDays.size();
-        int exercisesPerDay = (int) Math.ceil((double) program.size() / daysCount);
-
-        // Группируем упражнения по первому тегу
-        Map<String, List<WorkoutProgramGenerator.WorkoutExercise>> exercisesByTag = new HashMap<>();
-        for (WorkoutProgramGenerator.WorkoutExercise exercise : program) {
-            String primaryTag = exercise.getExercise().getTags().isEmpty() ?
-                    "Без тегов" : exercise.getExercise().getTags().get(0);
-            exercisesByTag.computeIfAbsent(primaryTag, k -> new ArrayList<>()).add(exercise);
-        }
-
-        // Сортируем теги
-        List<String> sortedTags = new ArrayList<>(exercisesByTag.keySet());
-        Collections.sort(sortedTags);
-
-        // Распределяем упражнения по дням
-        for (int dayIndex = 0; dayIndex < daysCount; dayIndex++) {
-            String dayName = trainingDays.get(dayIndex);
+        for (WorkoutProgramGenerator.DailyWorkout dailyWorkout : dailyWorkouts) {
+            String dayName = dailyWorkout.getDayName();
+            String workoutName = translateBodyPart(dailyWorkout.getFocusMuscle()); // Название по акценту
             items.add(new DayHeader(dayName, workoutName));
 
-            // Собираем упражнения для текущего дня
-            List<WorkoutProgramGenerator.WorkoutExercise> dayExercises = new ArrayList<>();
-            int startIndex = dayIndex * exercisesPerDay;
-            int endIndex = Math.min(startIndex + exercisesPerDay, program.size());
-
-            // Добавляем упражнения по тегам
-            for (String tag : sortedTags) {
-                List<WorkoutProgramGenerator.WorkoutExercise> tagExercises = exercisesByTag.get(tag);
-                for (WorkoutProgramGenerator.WorkoutExercise exercise : tagExercises) {
-                    int exerciseIndex = program.indexOf(exercise);
-                    if (exerciseIndex >= startIndex && exerciseIndex < endIndex) {
-                        dayExercises.add(exercise);
-                    }
-                }
-            }
-
-            // Добавляем упражнения в список элементов
-            for (WorkoutProgramGenerator.WorkoutExercise exercise : dayExercises) {
+            for (WorkoutProgramGenerator.WorkoutExercise exercise : dailyWorkout.getExercises()) {
                 items.add(new WorkoutExerciseItem(exercise));
             }
         }
 
+        Log.d("MainActivity", "Prepared " + items.size() + " workout items for " + dailyWorkouts.size() + " days");
         return items;
     }
 
-    private void createProgramFolderAndWorkouts(List<WorkoutProgramGenerator.WorkoutExercise> program, List<String> trainingDays) {
+    private void createProgramFolderAndWorkouts(List<WorkoutProgramGenerator.DailyWorkout> dailyWorkouts) {
         // Создаем уникальное имя папки
-        String baseFolderName = "Программа";
-        String folderName = baseFolderName;
+        String programName = translateBodyPart(personalWorkoutData.getBodyPart());
+        String folderName = programName;
         int suffix = 1;
 
         // Проверяем существование папки и генерируем уникальное имя
         while (true) {
-            boolean nameExists = false;
-            String currentName = folderName; // Создаем копию для использования в лямбда
-            for (Folder f : folders) {
-                if (f.name.equals(currentName)) {
-                    nameExists = true;
-                    break;
-                }
+            String candidateName = folderName; // Временная переменная для проверки
+            if (!folders.stream().anyMatch(f -> f.name.equals(candidateName))) {
+                break; // Имя уникально, выходим из цикла
             }
-            if (!nameExists) {
-                break;
-            }
-            folderName = baseFolderName + " " + suffix++;
+            folderName = programName + " " + suffix++; // Обновляем folderName для следующей итерации
         }
 
         // Создаем папку
@@ -2634,27 +2651,29 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
         Folder folder = new Folder(folderId, folderName);
         folders.add(folder);
 
-        // Распределяем упражнения по дням
-        int daysCount = trainingDays.size();
-        int exercisesPerDay = (int) Math.ceil((double) program.size() / daysCount);
+        // Создаем тренировки для каждого дня
+        for (WorkoutProgramGenerator.DailyWorkout dailyWorkout : dailyWorkouts) {
+            String dayName = dailyWorkout.getDayName();
+            String focusMuscle = dailyWorkout.getFocusMuscle();
+            String workoutName;
 
-        for (int dayIndex = 0; dayIndex < daysCount; dayIndex++) {
-            String dayName = trainingDays.get(dayIndex);
-            String workoutName = "Тренировка на " + dayName.toLowerCase();
+            // Если акцент "general", формируем название "Общая (день недели)"
+            if (focusMuscle.equals("general")) {
+                workoutName = "Общая (" + dayName + ")";
+            } else {
+                workoutName = translateBodyPart(focusMuscle); // Название по акценту
+            }
+
             String workoutId = UUID.randomUUID().toString();
             Workout newWorkout = new Workout(workoutId, workoutName);
 
-            // Добавляем упражнения для текущего дня
-            int startIndex = dayIndex * exercisesPerDay;
-            int endIndex = Math.min(startIndex + exercisesPerDay, program.size());
-            for (int i = startIndex; i < endIndex; i++) {
-                WorkoutProgramGenerator.WorkoutExercise exercise = program.get(i);
+            // Добавляем упражнения
+            for (WorkoutProgramGenerator.WorkoutExercise exercise : dailyWorkout.getExercises()) {
                 newWorkout.exerciseIds.add(exercise.getExercise().getId());
                 List<com.example.logster.Set> sets = new ArrayList<>(exercise.getSets());
                 newWorkout.exerciseSets.put(exercise.getExercise().getId(), sets);
             }
 
-            // Добавляем тренировку в список
             workouts.add(newWorkout);
             folder.addItem(workoutId);
 
@@ -2680,6 +2699,155 @@ public class MainActivity extends BaseActivity implements AddWorkout.WorkoutSele
         saveWeeklySchedule();
         syncWorkoutDates();
 
-        Log.d("MainActivity", "Создана папка: " + folderName + " с " + daysCount + " тренировками");
+        Log.d("MainActivity", "Создана папка: " + folderName + " с " + dailyWorkouts.size() + " тренировками");
     }
+
+    public void onDeleteWorkoutClicked(View view) {
+        Log.d("DeleteWorkout", "Кнопка удаления тренировки нажата");
+
+        // Получаем текущую тренировку по selectedWorkoutName
+        Workout workout = workouts.stream()
+                .filter(w -> w.name.equals(selectedWorkoutName))
+                .findFirst()
+                .orElse(null);
+
+        if (workout == null) {
+            Log.e("DeleteWorkout", "Тренировка не найдена: " + selectedWorkoutName);
+            Toast.makeText(this, "Тренировка не найдена", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Находим позицию тренировки в combinedAdapter.items
+        int position = combinedAdapter.items.indexOf(workout);
+        if (position == -1) {
+            Log.w("DeleteWorkout", "Тренировка не найдена в combinedAdapter.items: " + workout.name);
+        }
+
+        String confirmationMessage;
+        Runnable onConfirmAction;
+
+        if (isInFolder) {
+            // Тренировка в папке: переносим на главную страницу
+            confirmationMessage = "Удалить \"" + workout.name + "\" из папки?";
+            onConfirmAction = () -> {
+                try {
+                    // Находим текущую папку
+                    Folder folder = folders.stream()
+                            .filter(f -> f.name.equals(currentFolderName))
+                            .findFirst()
+                            .orElse(null);
+                    if (folder != null) {
+                        // Удаляем тренировку из папки
+                        folder.itemIds.remove(workout.id);
+                        Log.d("DeleteWorkout", "Тренировка \"" + workout.name + "\" удалена из папки: " + currentFolderName);
+
+                        // Устанавливаем флаг, что тренировка не в папке
+                        isInFolder = false; // Предполагаем, что у Workout есть поле isInFolder
+                        Log.d("DeleteWorkout", "Тренировка \"" + workout.name + "\" перенесена на главную страницу");
+
+                        // Обновляем UI папки
+                        int folderPos = combinedAdapter.getFolderPosition(folder.name);
+                        if (folderPos != -1) {
+                            combinedAdapter.notifyItemChanged(folderPos);
+                        }
+
+                        // Закрываем BottomSheet без анимации
+                        widgetSheet.hide(() -> {
+                            updateMainItems();
+                            saveItems();
+                            combinedAdapter.updateData(folders, workouts, bodyMetrics, currentFolderName);
+                            Log.d("DeleteWorkout", "Лист скрыт, адаптер обновлен");
+                        });
+                    } else {
+                        Log.w("DeleteWorkout", "Папка \"" + currentFolderName + "\" не найдена");
+                        Toast.makeText(this, "Папка не найдена", Toast.LENGTH_SHORT).show();
+                    }
+                } catch (Exception e) {
+                    Log.e("DeleteWorkout", "Ошибка переноса тренировки: " + e.getMessage(), e);
+                    Toast.makeText(this, "Ошибка при переносе тренировки", Toast.LENGTH_SHORT).show();
+                }
+            };
+        } else {
+            // Тренировка не в папке: полное удаление
+            confirmationMessage = "Удалить";
+            onConfirmAction = () -> {
+                try {
+                    // Удаляем тренировку
+                    workouts.remove(workout);
+                    removeWorkoutFromSchedules(workout.id);
+                    Log.d("DeleteWorkout", "Тренировка удалена: " + workout.name);
+
+                    // Удаляем из combinedAdapter.items
+                    if (position != -1) {
+                        combinedAdapter.items.remove(position);
+                        combinedAdapter.notifyItemRemoved(position);
+                        Log.d("DeleteWorkout", "Тренировка удалена из адаптера на позиции: " + position);
+                    }
+
+                    // Анимация "растворения" (Fade Out)
+                    RelativeLayout editWorkoutLayout = widgetSheet.getContentView().findViewById(R.id.edit_workout);
+                    if (editWorkoutLayout != null) {
+                        editWorkoutLayout.animate()
+                                .alpha(0f) // Постепенное исчезновение
+                                .setDuration(300) // Длительность анимации 300 мс
+                                .setInterpolator(new DecelerateInterpolator())
+                                .setListener(new AnimatorListenerAdapter() {
+                                    @Override
+                                    public void onAnimationEnd(Animator animation) {
+                                        editWorkoutLayout.setVisibility(View.GONE);
+                                        // Закрываем BottomSheet
+                                        widgetSheet.hide(() -> {
+                                            updateMainItems();
+                                            saveItems();
+                                            combinedAdapter.updateData(folders, workouts, bodyMetrics, currentFolderName);
+                                            Log.d("DeleteWorkout", "Лист скрыт, адаптер обновлен");
+                                        });
+                                    }
+                                })
+                                .start();
+                    } else {
+                        Log.w("DeleteWorkout", "edit_workout layout не найден в widgetSheet");
+                        // Если layout не найден, просто закрываем лист
+                        widgetSheet.hide(() -> {
+                            updateMainItems();
+                            saveItems();
+                            combinedAdapter.updateData(folders, workouts, bodyMetrics, currentFolderName);
+                            Log.d("DeleteWorkout", "Лист скрыт без анимации, адаптер обновлен");
+                        });
+                    }
+                } catch (Exception e) {
+                    Log.e("DeleteWorkout", "Ошибка удаления: " + e.getMessage(), e);
+                    Toast.makeText(this, "Ошибка при удалении тренировки", Toast.LENGTH_SHORT).show();
+                }
+            };
+        }
+
+        // Показываем confirmationSheet с нужным текстом
+        confirmationSheet.show(
+                confirmationMessage,
+                workout.name,
+                "Workout",
+                workout.id,
+                onConfirmAction,
+                () -> Log.d("DeleteWorkout", "Отменено действие: " + workout.name)
+        );
+    }
+    public long getTotalWorkoutCount(String workoutId) {
+        if (workoutCountCache.containsKey(workoutId)) {
+            long cachedCount = workoutCountCache.get(workoutId);
+            Log.d("MainActivity", "Cached workout count for ID " + workoutId + ": " + cachedCount);
+            return cachedCount;
+        }
+
+        // Подсчёт только завершённых тренировок из completedDates
+        Workout workout = workouts.stream()
+                .filter(w -> w.id.equals(workoutId))
+                .findFirst()
+                .orElse(null);
+        long count = (workout != null) ? workout.completedDates.size() : 0;
+        workoutCountCache.put(workoutId, count);
+        Log.d("MainActivity", "Total workout count for ID " + workoutId + ": " + count);
+        return count;
+    }
+
 }

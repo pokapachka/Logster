@@ -7,7 +7,10 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+
+import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.List;
@@ -128,16 +131,20 @@ public class CombinedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
             Workout workout = (Workout) item;
             WorkoutViewHolder workoutHolder = (WorkoutViewHolder) holder;
             workoutHolder.workoutName.setText(workout.name);
-            workoutHolder.workoutDay.setText(activity.getAllWorkoutDays(workout.id, workout.dates));
-            // Подсчёт тренировок на текущей неделе
+            // Отображаем дни недели для тренировки
+            String daysText = activity.getAllWorkoutDays(workout.id, workout.dates);
+            workoutHolder.workoutDay.setText(daysText);
+            Log.d("CombinedAdapter", "Тренировка: " + workout.name + ", дни: " + daysText);
+
+            // Подсчёт завершённых тренировок на текущей неделе
             LocalDate today = LocalDate.now();
-            LocalDate endOfWeek = today.with(TemporalAdjusters.nextOrSame(java.time.DayOfWeek.SUNDAY));
-            long weekWorkoutCount = workout.dates.stream()
+            LocalDate endOfWeek = today.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
+            long weekWorkoutCount = workout.completedDates.keySet().stream()
                     .filter(date -> {
                         try {
                             LocalDate localDate = LocalDate.parse(date);
                             return !localDate.isBefore(today) && !localDate.isAfter(endOfWeek);
-                        } catch (Exception e) {
+                        } catch (DateTimeParseException e) {
                             Log.e("CombinedAdapter", "Ошибка разбора даты: " + date, e);
                             return false;
                         }
@@ -145,7 +152,7 @@ public class CombinedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
                     .count();
             workoutHolder.workoutCount.setText(String.valueOf(weekWorkoutCount));
             workoutHolder.itemView.setOnClickListener(v -> activity.editWorkout(workout.name));
-            Log.d("CombinedAdapter", "Привязана тренировка: " + workout.name + ", тренировок на неделе=" + weekWorkoutCount);
+            Log.d("CombinedAdapter", "Привязана тренировка: " + workout.name + ", завершённых тренировок на неделе=" + weekWorkoutCount);
         } else if (holder instanceof MetricViewHolder) {
             BodyMetric metric = (BodyMetric) item;
             MetricViewHolder metricHolder = (MetricViewHolder) holder;

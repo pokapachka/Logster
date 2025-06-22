@@ -12,7 +12,9 @@ import android.view.animation.AnimationUtils;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import com.bumptech.glide.Glide;
 import com.google.android.flexbox.FlexboxLayout;
 
 import java.util.List;
@@ -479,14 +481,98 @@ public class BottomSheets {
                 setContentView(newView);
                 show();
             }
-        } else {
+        }  else if (layoutId == R.layout.profile_user && activity instanceof ChatActivity) {
+            Log.d(TAG, "Handling profile_user screen");
+            View back = newView.findViewById(R.id.back);
+            if (back != null) {
+                back.setOnClickListener(v -> {
+                    // Закрываем текущий BottomSheet с анимацией вниз
+                    hide(null);
+                });
+            }
+
+            // Загружаем данные профиля
+            ImageView profileImage = newView.findViewById(R.id.image_profile_user);
+            TextView tagText = newView.findViewById(R.id.tag_user);
+            TextView bioText = newView.findViewById(R.id.bio_user);
+
+            if (profileImage != null && tagText != null && bioText != null) {
+                if (data != null) {
+                    // Загружаем данные другого пользователя по userId
+                    RegisterContext.fetchProfileById(activity, data, new RegisterContext.Callback<RegisterContext.ProfileData>() {
+                        @Override
+                        public void onSuccess(RegisterContext.ProfileData profileData) {
+                            ((Activity) activity).runOnUiThread(() -> {
+                                // Устанавливаем тег
+                                String tag = profileData.username != null ? "@" + profileData.username : "pokapachka";
+                                tagText.setText(tag);
+
+                                // Устанавливаем био
+                                String bio = profileData.bio != null && !profileData.bio.isEmpty() ? profileData.bio : "Биография не указана";
+                                bioText.setText(bio);
+
+                                // Устанавливаем изображение профиля
+                                String imageUrl = profileData.imageUrl;
+                                if (imageUrl != null && !imageUrl.isEmpty()) {
+                                    Glide.with(activity)
+                                            .load(imageUrl)
+                                            .placeholder(R.drawable.default_profile)
+                                            .error(R.drawable.default_profile)
+                                            .circleCrop()
+                                            .into(profileImage);
+                                } else {
+                                    profileImage.setImageResource(R.drawable.default_profile);
+                                }
+                                Log.d(TAG, "Данные профиля пользователя загружены: userId=" + data);
+                            });
+                        }
+
+                        @Override
+                        public void onError(String error) {
+                            ((Activity) activity).runOnUiThread(() -> {
+                                Log.e(TAG, "Ошибка загрузки профиля пользователя: " + error);
+                                Toast.makeText(activity, "Ошибка загрузки профиля", Toast.LENGTH_SHORT).show();
+                                // Устанавливаем значения по умолчанию
+                                tagText.setText("pokapachka");
+                                bioText.setText("Биография не указана");
+                                profileImage.setImageResource(R.drawable.default_profile);
+                            });
+                        }
+                    });
+                } else {
+                    // Загружаем данные текущего пользователя
+                    ChatActivity chatActivity = (ChatActivity) activity;
+                    String imageUrl = chatActivity.getProfileImageUrl();
+                    String tag = chatActivity.getProfileTag();
+                    String bio = chatActivity.getProfileBio();
+
+                    tagText.setText(tag != null && !tag.isEmpty() ? tag : "pokapachka");
+                    bioText.setText(bio != null && !bio.isEmpty() ? bio : "Биография не указана");
+                    if (imageUrl != null && !imageUrl.isEmpty()) {
+                        Glide.with(activity)
+                                .load(imageUrl)
+                                .placeholder(R.drawable.default_profile)
+                                .error(R.drawable.default_profile)
+                                .circleCrop()
+                                .into(profileImage);
+                    } else {
+                        profileImage.setImageResource(R.drawable.default_profile);
+                    }
+                }
+            } else {
+                Log.e(TAG, "Missing UI elements in profile_user layout: image_profile_user=" + (profileImage == null) +
+                        ", tag_user=" + (tagText == null) + ", bio_user=" + (bioText == null));
+                Toast.makeText(activity, "Ошибка загрузки интерфейса профиля", Toast.LENGTH_SHORT).show();
+            }
+
             if (useHorizontalTransition && exitAnim != 0 && enterAnim != 0) {
                 showWithHorizontalTransition(exitAnim, enterAnim, newView, null);
             } else {
                 setContentView(newView);
                 show();
             }
-            Log.d(TAG, "Handling generic layout with ID: " + layoutId);
+            Log.d(TAG, "Initialized profile_user screen");
+
         }
     }
 }

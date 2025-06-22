@@ -32,7 +32,7 @@
             android:id="@+id/title_p6"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="300dp">
+            android:layout_marginTop="200dp">
 
         <TextView
             android:id="@+id/head"
@@ -61,6 +61,7 @@
         android:textSize="15sp"
     android:textColor="#FFFFFF"
     android:textStyle="bold"
+        android:inputType="number"
     android:background="@drawable/sets_et"
     android:gravity="center" />
 

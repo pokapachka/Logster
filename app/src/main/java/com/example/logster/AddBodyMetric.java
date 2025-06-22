@@ -38,23 +38,42 @@ public class AddBodyMetric {
     private static TextView selectedMetricTextView = null;
     private static TextView selectedMainTextView = null;
 
+    // Новый метод для получения единицы измерения
+    private static String getUnitForMetric(String metricType) {
+        switch (metricType.toLowerCase()) {
+            case "вес":
+                return "Кг";
+            case "рост":
+                return "См";
+            case "число":
+                return "";
+            default:
+                Log.w("BodyMetricAdapter", "Неизвестный тип метрики: " + metricType);
+                return "";
+        }
+    }
+
     public static void setupNumberPicker(
             ScrollView mainScrollView,
             LinearLayout mainValueList,
             View mainTopLine,
             View mainBottomLine,
             ImageView centerArrow,
-            String metricType
+            String metricType,
+            TextView unitTextView // Новый параметр для TextView
     ) {
         // Логирование для отладки
         Log.d("BodyMetricAdapter", "setupNumberPicker called with metricType: " + metricType);
         if (mainScrollView == null || mainValueList == null || mainTopLine == null ||
-                mainBottomLine == null || centerArrow == null) {
+                mainBottomLine == null || centerArrow == null || unitTextView == null) {
             Log.e("BodyMetricAdapter", "Один или несколько элементов null в setupNumberPicker");
             Toast.makeText(mainScrollView.getContext(),
                     "Ошибка: элементы интерфейса не инициализированы", Toast.LENGTH_SHORT).show();
             return;
         }
+
+        // Устанавливаем единицу измерения
+        unitTextView.setText(getUnitForMetric(metricType));
 
         // Очистка существующих задач
         handler.removeCallbacksAndMessages(null);

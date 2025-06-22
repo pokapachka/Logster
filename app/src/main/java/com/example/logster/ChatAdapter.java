@@ -1,5 +1,6 @@
 package com.example.logster;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.util.Log;
@@ -8,6 +9,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.DiffUtil;
@@ -25,15 +27,18 @@ import java.util.TimeZone;
 public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private static final int SELF_MESSAGE = 1;
     private static final int OTHER_MESSAGE = 2;
+    private static final String TAG = "ChatAdapter";
 
     private List<RegisterContext.Message> messages;
     private String currentUserId;
     private String currentUsername;
     private final Context context;
+    private final BottomSheets bottomSheets; // Для открытия профиля
 
     public ChatAdapter(Context context, List<RegisterContext.Message> messages) {
         this.context = context;
         this.messages = messages != null ? messages : new ArrayList<>();
+        this.bottomSheets = new BottomSheets((Activity) context); // Инициализация BottomSheets
         updateCurrentUser();
     }
 
@@ -45,7 +50,7 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             currentUserId = newUserId;
             currentUsername = newUsername;
             notifyDataSetChanged();
-            Log.d("ChatAdapter", "Обновлён текущий пользователь: " + currentUsername);
+            Log.d(TAG, "Обновлён текущий пользователь: " + currentUsername);
         }
     }
 
@@ -75,6 +80,59 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             selfHolder.contentTextView.setText(message.content);
             selfHolder.usernameTextView.setText("@" + currentUsername);
             selfHolder.timestampTextView.setText(formatTimestamp(message.createdAt));
+
+            // Обработчик долгого нажатия для своих сообщений
+            selfHolder.itemView.setOnLongClickListener(v -> {
+                ConfirmationBottomSheet confirmationSheet = new ConfirmationBottomSheet(context);
+                confirmationSheet.show(
+                        "Удалить сообщение",
+                        message.content.length() > 20 ? message.content.substring(0, 20) + "..." : message.content,
+                        "Message",
+                        message.id,
+                        () -> {
+                            // Действие при подтверждении удаления
+                            int currentPosition = holder.getAdapterPosition();
+                            if (currentPosition == RecyclerView.NO_POSITION) {
+                                Log.w(TAG, "Позиция недействительна, удаление отменено: id=" + message.id);
+                                return;
+                            }
+                            RegisterContext.deleteMessage(context, message.id, new RegisterContext.Callback<Void>() {
+                                @Override
+                                public void onSuccess(Void result) {
+                                    ((Activity) context).runOnUiThread(() -> {
+                                        // Удаляем сообщение из списка
+                                        if (currentPosition < messages.size() && messages.get(currentPosition).id.equals(message.id)) {
+                                            messages.remove(currentPosition);
+                                            notifyItemRemoved(currentPosition);
+                                            notifyItemRangeChanged(currentPosition, messages.size());
+                                            Log.d(TAG, "Сообщение удалено: id=" + message.id);
+                                            // Обновляем список сообщений с сервера
+                                            if (context instanceof ChatActivity) {
+                                                ((ChatActivity) context).loadMessages();
+                                            }
+                                        } else {
+                                            Log.w(TAG, "Сообщение на позиции не соответствует ID, обновление UI пропущено");
+                                            // Обновляем список для синхронизации
+                                            if (context instanceof ChatActivity) {
+                                                ((ChatActivity) context).loadMessages();
+                                            }
+                                        }
+                                    });
+                                }
+
+                                @Override
+                                public void onError(String error) {
+                                    ((Activity) context).runOnUiThread(() -> {
+                                        Toast.makeText(context, "Ошибка удаления: " + error, Toast.LENGTH_SHORT).show();
+                                        Log.e(TAG, "Ошибка удаления сообщения: " + error);
+                                    });
+                                }
+                            });
+                        },
+                        () -> Log.d(TAG, "Удаление сообщения отменено: id=" + message.id)
+                );
+                return true;
+            });
         } else {
             OtherMessageViewHolder otherHolder = (OtherMessageViewHolder) holder;
             otherHolder.usernameTextView.setText("@" + message.sender_login);
@@ -85,18 +143,25 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                         .load(message.user_image)
                         .placeholder(R.drawable.default_profile)
                         .error(R.drawable.default_profile)
-                        .circleCrop() // Круглая обрезка
+                        .circleCrop()
                         .into(otherHolder.userImage);
             } else {
                 otherHolder.userImage.setImageResource(R.drawable.default_profile);
             }
+            // Обработчик клика по изображению пользователя
+            otherHolder.userImage.setOnClickListener(v -> {
+                if (context instanceof ChatActivity) {
+                    bottomSheets.switchSheet(R.layout.profile_user, message.userId, false, 0, 0);
+                    Log.d(TAG, "Открыт профиль пользователя: userId=" + message.userId);
+                }
+            });
         }
     }
 
     private String formatTimestamp(String createdAt) {
         try {
             if (createdAt == null || createdAt.isEmpty()) {
-                Log.e("ChatAdapter", "Пустая или null строка времени");
+                Log.e(TAG, "Пустая или null строка времени");
                 return "Неизвестное время";
             }
 
@@ -112,7 +177,7 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             }
 
             if (messageDate == null) {
-                Log.e("ChatAdapter", "Не удалось распарсить дату: " + createdAt);
+                Log.e(TAG, "Не удалось распарсить дату: " + createdAt);
                 return "Неизвестное время";
             }
 
@@ -129,33 +194,33 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             String formattedTime = outputTimeFormat.format(messageDate);
 
             if (diffInDays < 1 && isSameDay(now, messageDate)) {
-                Log.d("ChatAdapter", "Форматировано время (сегодня): " + createdAt + " -> " + formattedTime);
+                Log.d(TAG, "Форматировано время (сегодня): " + createdAt + " -> " + formattedTime);
                 return formattedTime;
             } else if (diffInDays == 1) {
-                Log.d("ChatAdapter", "Форматировано время (вчера): " + createdAt + " -> вчера " + formattedTime);
+                Log.d(TAG, "Форматировано время (вчера): " + createdAt + " -> вчера " + formattedTime);
                 return "вчера " + formattedTime;
             } else if (diffInDays == 2) {
-                Log.d("ChatAdapter", "Форматировано время (позавчера): " + createdAt + " -> позавчера " + formattedTime);
+                Log.d(TAG, "Форматировано время (позавчера): " + createdAt + " -> позавчера " + formattedTime);
                 return "позавчера " + formattedTime;
             } else if (diffInDays >= 3 && diffInDays <= 6) {
                 String daysText = getDaysText(diffInDays);
-                Log.d("ChatAdapter", "Форматировано время (дни назад): " + createdAt + " -> " + daysText + " " + formattedTime);
+                Log.d(TAG, "Форматировано время (дни назад): " + createdAt + " -> " + daysText + " " + formattedTime);
                 return daysText + " " + formattedTime;
             } else if (diffInDays >= 7 && diffInDays < 14) {
-                Log.d("ChatAdapter", "Форматировано время (неделя назад): " + createdAt + " -> неделю назад");
+                Log.d(TAG, "Форматировано время (неделя назад): " + createdAt + " -> неделю назад");
                 return "неделю назад";
             } else if (diffInDays >= 14 && diffInDays < 21) {
-                Log.d("ChatAdapter", "Форматировано время (две недели назад): " + createdAt + " -> две недели назад");
+                Log.d(TAG, "Форматировано время (две недели назад): " + createdAt + " -> две недели назад");
                 return "две недели назад";
             } else if (diffInDays >= 21 && diffInDays < 30) {
-                Log.d("ChatAdapter", "Форматировано время (три недели назад): " + createdAt + " -> три недели назад");
+                Log.d(TAG, "Форматировано время (три недели назад): " + createdAt + " -> три недели назад");
                 return "три недели назад";
             } else {
-                Log.d("ChatAdapter", "Форматировано время (месяц назад): " + createdAt + " -> месяц назад");
+                Log.d(TAG, "Форматировано время (месяц назад): " + createdAt + " -> месяц назад");
                 return "месяц назад";
             }
         } catch (Exception e) {
-            Log.e("ChatAdapter", "Ошибка парсинга времени: " + e.getMessage() + " для строки: " + createdAt);
+            Log.e(TAG, "Ошибка парсинга времени: " + e.getMessage() + " для строки: " + createdAt);
             return "Неизвестное время";
         }
     }
@@ -184,7 +249,7 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     public void clear() {
         messages.clear();
         notifyDataSetChanged();
-        Log.d("ChatAdapter", "Список сообщений: очищен");
+        Log.d(TAG, "Список сообщений: очищен");
     }
 
     public void updateMessages(List<RegisterContext.Message> newMessages) {
@@ -212,13 +277,13 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         messages.clear();
         messages.addAll(newMessages);
         result.dispatchUpdatesTo(this);
-        Log.d("ChatAdapter", "Обновлено сообщений: " + newMessages.size());
+        Log.d(TAG, "Обновлено сообщений: " + newMessages.size());
     }
 
     public void addMessage(RegisterContext.Message message) {
         this.messages.add(0, message);
         notifyItemInserted(0);
-        Log.d("ChatAdapter", "Добавлено сообщение: " + message.content);
+        Log.d(TAG, "Добавлено сообщение: " + message.content);
     }
 
     static class SelfMessageViewHolder extends RecyclerView.ViewHolder {
@@ -248,4 +313,6 @@ public class ChatAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             userImage = itemView.findViewById(R.id.user_image);
         }
     }
+
+
 }

@@ -9,6 +9,8 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
+import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -42,15 +44,15 @@ public class WorkoutAdapter extends RecyclerView.Adapter<WorkoutAdapter.WorkoutV
 
         // Получаем дни недели для тренировки
         String daysText = activity.getAllWorkoutDays(workout.id, workout.dates);
-        holder.workoutDay.setText(daysText.isEmpty() ? "Не выбрано" : daysText);
+        holder.workoutDay.setText(daysText);
         holder.workoutDay.setVisibility(View.VISIBLE);
         Log.d("WorkoutAdapter", "Workout: " + workout.name + ", days: " + daysText);
 
-        // Подсчёт завершённых тренировок + 1 для следующей
-        long completedCount = workout.completedDates.size() + 1; // Следующая тренировка
-        holder.workoutCount.setText(String.valueOf(completedCount));
+        // Подсчёт только завершённых тренировок
+        long totalWorkoutCount = activity.getTotalWorkoutCount(workout.id);
+        holder.workoutCount.setText(String.valueOf(totalWorkoutCount));
         holder.workoutCount.setVisibility(View.VISIBLE);
-        Log.d("WorkoutAdapter", "Workout: " + workout.name + ", completed count: " + completedCount);
+        Log.d("WorkoutAdapter", "Workout: " + workout.name + ", total workout count: " + totalWorkoutCount);
 
         // Обработчик клика для редактирования тренировки
         holder.itemView.setOnClickListener(v -> {
@@ -86,4 +88,5 @@ public class WorkoutAdapter extends RecyclerView.Adapter<WorkoutAdapter.WorkoutV
             Log.d("WorkoutAdapter", "ViewHolder initialized");
         }
     }
+
 }

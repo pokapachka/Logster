@@ -3,8 +3,10 @@ package com.example.logster;
 import android.util.Log;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
@@ -41,13 +43,55 @@ public class WorkoutProgramGenerator {
         }
     }
 
+    public static class DailyWorkout {
+        private final String dayName;
+        private final String focusMuscle; // Преобладающая группа мышц
+        private final List<WorkoutExercise> exercises;
+
+        public DailyWorkout(String dayName, String focusMuscle, List<WorkoutExercise> exercises) {
+            this.dayName = dayName;
+            this.focusMuscle = focusMuscle;
+            this.exercises = exercises;
+        }
+
+        public String getDayName() {
+            return dayName;
+        }
+
+        public String getFocusMuscle() {
+            return focusMuscle;
+        }
+
+        public List<WorkoutExercise> getExercises() {
+            return exercises;
+        }
+    }
+
+    public static class WorkoutProgram {
+        private final List<DailyWorkout> dailyWorkouts;
+        private final String programName;
+
+        public WorkoutProgram(List<DailyWorkout> dailyWorkouts, String programName) {
+            this.dailyWorkouts = dailyWorkouts;
+            this.programName = programName;
+        }
+
+        public List<DailyWorkout> getDailyWorkouts() {
+            return dailyWorkouts;
+        }
+
+        public String getProgramName() {
+            return programName;
+        }
+    }
+
     public WorkoutProgramGenerator(PersonalWorkoutData userData) {
         this.userData = userData;
         this.availableExercises = ExerciseList.getAllExercises();
     }
 
-    public List<WorkoutExercise> generateProgram() {
-        List<WorkoutExercise> program = new ArrayList<>();
+    public WorkoutProgram generateProgram() {
+        List<DailyWorkout> dailyWorkouts = new ArrayList<>();
         int trainingDays = userData.getTrainingDays().size();
         String goal = userData.getGoal();
         String motivation = userData.getMotivation();
@@ -57,45 +101,96 @@ public class WorkoutProgramGenerator {
         int weight = parseIntOrDefault(userData.getWeight(), 70);
         int age = parseIntOrDefault(userData.getAge(), 30);
 
-        int exercisesPerDay = calculateExercisesPerDay(fitnessLevel, goal, motivation);
+        // Формируем название программы на основе основной группы мышц
+        String programName = mapBodyPartToMuscle(bodyPart);
+        programName = translateBodyPart(programName);
+
+        // Фильтруем упражнения
         List<ExercisesAdapter.Exercise> filteredExercises = filterExercises(location, bodyPart, goal);
 
-        Random random = new Random();
-        Set<String> usedExercises = new HashSet<>();
-        for (int day = 0; day < trainingDays; day++) {
-            List<ExercisesAdapter.Exercise> dayExercises = new ArrayList<>(filteredExercises);
-            Collections.shuffle(dayExercises, random);
-            int exercisesToAdd = Math.min(exercisesPerDay, dayExercises.size());
-            int added = 0;
-
-            List<ExercisesAdapter.Exercise> priorityExercises = getPriorityExercises(dayExercises, goal, motivation);
-
-            // Определяем тип тренировки для дня (сила, гипертрофия, выносливость)
-            String dayType = getTrainingDayType(day, trainingDays);
-
-            for (ExercisesAdapter.Exercise exercise : priorityExercises) {
-                if (added < exercisesToAdd && !usedExercises.contains(exercise.getName())) {
-                    addExerciseToProgram(program, exercise, fitnessLevel, goal, motivation, weight, age, location, dayType);
-                    usedExercises.add(exercise.getName());
-                    added++;
-                }
-            }
-
-            for (ExercisesAdapter.Exercise exercise : dayExercises) {
-                if (added < exercisesToAdd && !usedExercises.contains(exercise.getName())) {
-                    addExerciseToProgram(program, exercise, fitnessLevel, goal, motivation, weight, age, location, dayType);
-                    usedExercises.add(exercise.getName());
-                    added++;
-                }
-            }
-
-            if (day < trainingDays - 1) {
-                usedExercises.clear();
-            }
+        // Группируем упражнения по тегам (группам мышц)
+        Map<String, List<ExercisesAdapter.Exercise>> exercisesByMuscle = new HashMap<>();
+        for (ExercisesAdapter.Exercise exercise : filteredExercises) {
+            String muscle = exercise.getTags().isEmpty() ? "general" : exercise.getTags().get(0);
+            exercisesByMuscle.computeIfAbsent(muscle, k -> new ArrayList<>()).add(exercise);
         }
 
-        Log.d("WorkoutProgramGenerator", "Generated program with " + program.size() + " exercises for " + trainingDays + " days");
-        return program;
+        // Определяем доступные группы мышц для акцентов
+        List<String> availableMuscles = new ArrayList<>(exercisesByMuscle.keySet());
+        if (!availableMuscles.contains(mapBodyPartToMuscle(bodyPart))) {
+            availableMuscles.add(mapBodyPartToMuscle(bodyPart));
+        }
+
+        // Распределяем акценты по дням
+        List<String> focusMuscles = assignFocusMuscles(trainingDays, availableMuscles, mapBodyPartToMuscle(bodyPart));
+
+        Random random = new Random();
+        int exercisesPerDay = calculateExercisesPerDay(fitnessLevel, goal, motivation);
+        String[] dayNames = {"Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"};
+        int dayNameIndex = 0;
+
+        for (int day = 0; day < trainingDays; day++) {
+            String focusMuscle = focusMuscles.get(day);
+            List<WorkoutExercise> dayExercises = new ArrayList<>();
+            Set<String> usedExercises = new HashSet<>();
+
+            // Определяем тип тренировки для дня
+            String dayType = getTrainingDayType(day, trainingDays);
+
+            // Собираем упражнения с акцентом на focusMuscle
+            List<ExercisesAdapter.Exercise> muscleExercises = new ArrayList<>(exercisesByMuscle.getOrDefault(focusMuscle, new ArrayList<>()));
+            Collections.shuffle(muscleExercises, random);
+
+            List<ExercisesAdapter.Exercise> priorityExercises = getPriorityExercises(muscleExercises, goal, motivation);
+            int focusCount = (int) Math.ceil(exercisesPerDay * 0.7); // 70% упражнений на акцент
+            int otherCount = exercisesPerDay - focusCount;
+
+            // Добавляем приоритетные упражнения для акцента
+            int added = 0;
+            for (ExercisesAdapter.Exercise exercise : priorityExercises) {
+                if (added < focusCount && !usedExercises.contains(exercise.getName())) {
+                    addExerciseToProgram(dayExercises, exercise, fitnessLevel, goal, motivation, weight, age, location, dayType);
+                    usedExercises.add(exercise.getName());
+                    added++;
+                }
+            }
+
+            // Добавляем остальные упражнения для акцента
+            for (ExercisesAdapter.Exercise exercise : muscleExercises) {
+                if (added < focusCount && !usedExercises.contains(exercise.getName())) {
+                    addExerciseToProgram(dayExercises, exercise, fitnessLevel, goal, motivation, weight, age, location, dayType);
+                    usedExercises.add(exercise.getName());
+                    added++;
+                }
+            }
+
+            // Добавляем упражнения для других групп мышц
+            List<ExercisesAdapter.Exercise> otherExercises = new ArrayList<>();
+            for (String muscle : exercisesByMuscle.keySet()) {
+                if (!muscle.equals(focusMuscle)) {
+                    otherExercises.addAll(exercisesByMuscle.get(muscle));
+                }
+            }
+            Collections.shuffle(otherExercises, random);
+
+            for (ExercisesAdapter.Exercise exercise : otherExercises) {
+                if (added < exercisesPerDay && !usedExercises.contains(exercise.getName())) {
+                    addExerciseToProgram(dayExercises, exercise, fitnessLevel, goal, motivation, weight, age, location, dayType);
+                    usedExercises.add(exercise.getName());
+                    added++;
+                }
+            }
+
+            // Создаём тренировку для дня
+            String dayName = userData.getTrainingDays().get(day);
+            DailyWorkout dailyWorkout = new DailyWorkout(dayName, focusMuscle, dayExercises);
+            dailyWorkouts.add(dailyWorkout);
+
+            Log.d("WorkoutProgramGenerator", "Day: " + dayName + ", Focus: " + focusMuscle + ", Exercises: " + dayExercises.size());
+        }
+
+        Log.d("WorkoutProgramGenerator", "Generated program '" + programName + "' with " + dailyWorkouts.size() + " days");
+        return new WorkoutProgram(dailyWorkouts, programName);
     }
 
     private void addExerciseToProgram(List<WorkoutExercise> program, ExercisesAdapter.Exercise exercise,
@@ -387,5 +482,47 @@ public class WorkoutProgramGenerator {
         } catch (NumberFormatException e) {
             return defaultValue;
         }
+    }
+    private String translateBodyPart(String bodyPart) {
+        switch (bodyPart) {
+            case "arms":
+                return "Руки";
+            case "back":
+                return "Спина";
+            case "chest":
+                return "Грудь";
+            case "legs":
+                return "Ноги";
+            case "core":
+                return "Пресс";
+            case "shoulders":
+                return "Плечи";
+            case "cardio":
+                return "Кардио";
+            default:
+                return "Общая";
+        }
+    }
+    private List<String> assignFocusMuscles(int trainingDays, List<String> availableMuscles, String primaryMuscle) {
+        List<String> focusMuscles = new ArrayList<>();
+        Random random = new Random();
+
+        // Гарантируем, что основная мышца будет акцентом хотя бы в одном дне
+        focusMuscles.add(primaryMuscle);
+        availableMuscles.remove(primaryMuscle);
+
+        // Заполняем остальные дни
+        for (int i = 1; i < trainingDays; i++) {
+            if (availableMuscles.isEmpty()) {
+                focusMuscles.add(primaryMuscle); // Если закончились группы, используем основную
+            } else {
+                String muscle = availableMuscles.get(random.nextInt(availableMuscles.size()));
+                focusMuscles.add(muscle);
+                availableMuscles.remove(muscle);
+            }
+        }
+
+        Collections.shuffle(focusMuscles, random); // Перемешиваем для разнообразия
+        return focusMuscles;
     }
 }

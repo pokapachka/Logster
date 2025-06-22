@@ -15,7 +15,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 public abstract class BaseActivity extends AppCompatActivity {
 
-    private static final String TAG = "BaseActivity";
+    public static final String TAG = "BaseActivity";
     private ImageView hideKeyboardIcon;
     private boolean isKeyboardVisible = false;
     private int keyboardHeight = 0;

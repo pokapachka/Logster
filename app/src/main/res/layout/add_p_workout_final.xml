@@ -4,61 +4,61 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/rounded_top"
-    android:fontFamily="sans-serif"
-    android:clipChildren="false"
-    android:clipToPadding="false">
+    android:fontFamily="sans-serif">
 
-    <!-- Ручка сверху -->
-    <View
-        android:id="@+id/top_line"
-        android:layout_width="80dp"
-        android:layout_height="4dp"
-        android:layout_centerHorizontal="true"
-        android:layout_marginTop="5dp"
-        android:background="@drawable/handle_background" />
-
-    <!-- Кнопка назад -->
-    <FrameLayout
-        android:id="@+id/close"
-        android:layout_width="30dp"
-        android:layout_height="30dp"
-        android:layout_marginTop="35dp"
-        android:layout_marginStart="10dp"
-        android:onClick="backSheetEditWorkout">
-        <ImageView
-            android:id="@+id/btn_plus"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_gravity="center"
-            android:src="@drawable/back"/>
-    </FrameLayout>
-
-    <!-- Кнопка "Создать программу" -->
-    <TextView
-        android:id="@+id/create_program"
-        android:layout_width="wrap_content"
+    <RelativeLayout
+        android:id="@+id/top_program"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_alignParentEnd="true"
-        android:paddingStart="20dp"
-        android:paddingTop="15dp"
-        android:paddingEnd="20dp"
-        android:paddingBottom="15dp"
-        android:layout_marginTop="20dp"
-        android:layout_marginEnd="15dp"
-        android:text="Создать программу"
-        android:textColor="@color/black"
-        android:background="@drawable/enter_btn2"
-        android:textSize="15sp"
-        android:textStyle="bold" />
+        android:background="#0B0B0E">
 
-    <!-- ScrollView для прокрутки содержимого -->
+        <FrameLayout
+            android:id="@+id/close"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:layout_marginTop="35dp"
+            android:layout_marginStart="10dp"
+            android:onClick="backSheetEditWorkout">
+            <ImageView
+                android:id="@+id/btn_plus"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_gravity="center"
+                android:src="@drawable/back"/>
+        </FrameLayout>
+
+        <View
+            android:id="@+id/top_line"
+            android:layout_width="80dp"
+            android:layout_height="4dp"
+            android:layout_centerHorizontal="true"
+            android:layout_marginTop="5dp"
+            android:background="@drawable/handle_background" />
+
+        <TextView
+            android:id="@+id/create_program"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:paddingStart="20dp"
+            android:paddingTop="15dp"
+            android:paddingEnd="20dp"
+            android:paddingBottom="15dp"
+            android:layout_marginTop="20dp"
+            android:layout_marginEnd="15dp"
+            android:text="Создать программу"
+            android:textColor="@color/black"
+            android:background="@drawable/enter_btn2"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+    </RelativeLayout>
+
     <ScrollView
         android:id="@+id/scroll_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_below="@id/close"
-        android:layout_marginTop="30dp"
-        android:layout_marginBottom="20dp"
+        android:layout_marginTop="70dp"
+        android:paddingBottom="20dp"
         android:fillViewport="true"
         android:overScrollMode="never">
 
@@ -83,7 +83,7 @@
                 android:id="@+id/description"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Ваша программа тренировок готова. Описание Описание Описание Описание Описание"
+                android:text="Ваша программа тренировок готова"
                 android:textColor="#FFFFFF"
                 android:textSize="15sp"
                 android:layout_marginStart="15dp"

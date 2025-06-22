@@ -697,30 +697,44 @@ public class RegisterContext {
                     String userId = prefs.getString("user_id", null);
                     String accessToken = prefs.getString("access_token", null);
                     if (userId == null || accessToken == null) {
-                        error = "User not authenticated";
+                        error = "Пользователь не авторизован";
+                        Log.e(TAG, "DeleteAccount: userId=" + userId + ", accessToken=" + accessToken);
                         return null;
                     }
 
-                    OkHttpClient client = new OkHttpClient();
+                    OkHttpClient client = new OkHttpClient.Builder()
+                            .connectTimeout(10, TimeUnit.SECONDS)
+                            .readTimeout(10, TimeUnit.SECONDS)
+                            .writeTimeout(10, TimeUnit.SECONDS)
+                            .build();
+
+                    String url = ADMIN_USERS_URL + "/" + URLEncoder.encode(userId, "UTF-8");
                     Request request = new Request.Builder()
-                            .url(ADMIN_USERS_URL + "/" + userId)
-                            .header("Authorization", TOKEN)
-                            .header("apikey", TOKEN.replace("Bearer ", ""))
+                            .url(url)
+                            .header("Authorization", "Bearer " + accessToken) // Используем пользовательский токен
+                            .header("apikey", ANON_KEY)
                             .header("Content-Type", "application/json")
                             .delete()
                             .build();
+
                     Response response = client.newCall(request).execute();
-                    String responseBody = response.body() != null ? response.body().string() : "";
-                    Log.d(TAG, "DeleteAccount Response: Code " + response.code() + ", Body: " + responseBody);
+                    int responseCode = response.code();
+                    String responseBody = response.body() != null ? response.body().string() : "No response body";
+
+                    Log.d(TAG, "DeleteAccount Response: Code=" + responseCode + ", Body=" + responseBody);
+
                     if (!response.isSuccessful()) {
-                        error = "Failed to delete account: HTTP " + response.code();
+                        error = "Не удалось удалить аккаунт: HTTP " + responseCode + ", " + responseBody;
+                        Log.e(TAG, error);
                         return null;
                     }
+
                     logout(context);
+                    Log.d(TAG, "Аккаунт успешно удалён, выполнена очистка данных");
                     return null;
                 } catch (Exception e) {
-                    error = "Error deleting account: " + e.getMessage();
-                    Log.e(TAG, "Delete account error", e);
+                    error = "Ошибка удаления аккаунта: " + e.getMessage();
+                    Log.e(TAG, "DeleteAccount exception", e);
                     return null;
                 }
             }
@@ -1005,6 +1019,113 @@ public class RegisterContext {
                     callback.onError(error);
                 } else {
                     callback.onSuccess(result);
+                }
+            }
+        }.execute();
+    }
+    public static void fetchProfileById(Context context, String userId, Callback<ProfileData> callback) {
+        new AsyncTask<Void, Void, ProfileData>() {
+            private String error;
+
+            @Override
+            protected ProfileData doInBackground(Void... voids) {
+                try {
+                    if (userId == null || userId.isEmpty()) {
+                        error = "Invalid user ID";
+                        return null;
+                    }
+
+                    OkHttpClient client = new OkHttpClient.Builder()
+                            .connectTimeout(10, TimeUnit.SECONDS)
+                            .readTimeout(10, TimeUnit.SECONDS)
+                            .build();
+                    String encodedUserId = URLEncoder.encode(userId, "UTF-8");
+                    Request request = new Request.Builder()
+                            .url(REST_URL + "?id=eq." + encodedUserId)
+                            .header("Authorization", TOKEN)
+                            .header("apikey", ANON_KEY)
+                            .header("Content-Type", "application/json")
+                            .get()
+                            .build();
+                    Response response = client.newCall(request).execute();
+                    String responseBody = response.body().string();
+                    Log.d(TAG, "FetchProfileById Response: Code " + response.code() + ", Body: " + responseBody);
+                    if (!response.isSuccessful()) {
+                        error = "Failed to load profile: HTTP " + response.code();
+                        return null;
+                    }
+                    JSONArray profiles = new JSONArray(responseBody);
+                    if (profiles.length() == 0) {
+                        error = "Profile not found for userId: " + userId;
+                        return null;
+                    }
+                    JSONObject profile = profiles.getJSONObject(0);
+                    return new ProfileData(
+                            profile.getString("username"),
+                            profile.optString("bio", ""),
+                            profile.optString("image", null)
+                    );
+                } catch (Exception e) {
+                    error = "Error loading profile: " + e.getMessage();
+                    Log.e(TAG, "Fetch profile by ID error", e);
+                    return null;
+                }
+            }
+
+            @Override
+            protected void onPostExecute(ProfileData profileData) {
+                if (error != null) {
+                    callback.onError(error);
+                } else {
+                    callback.onSuccess(profileData);
+                }
+            }
+        }.execute();
+    }
+    public static void deleteMessage(Context context, String messageId, Callback<Void> callback) {
+        new AsyncTask<Void, Void, Void>() {
+            private String error;
+
+            @Override
+            protected Void doInBackground(Void... voids) {
+                try {
+                    if (messageId == null || messageId.isEmpty()) {
+                        error = "Invalid message ID";
+                        return null;
+                    }
+
+                    OkHttpClient client = new OkHttpClient.Builder()
+                            .connectTimeout(10, TimeUnit.SECONDS)
+                            .readTimeout(10, TimeUnit.SECONDS)
+                            .build();
+                    String encodedMessageId = URLEncoder.encode(messageId, "UTF-8");
+                    Request request = new Request.Builder()
+                            .url(MESSAGES_URL + "?id=eq." + encodedMessageId)
+                            .header("Authorization", TOKEN)
+                            .header("apikey", ANON_KEY)
+                            .header("Content-Type", "application/json")
+                            .delete()
+                            .build();
+                    Response response = client.newCall(request).execute();
+                    Log.d(TAG, "DeleteMessage Response: Code " + response.code());
+                    if (!response.isSuccessful()) {
+                        error = "Failed to delete message: HTTP " + response.code();
+                        return null;
+                    }
+                    return null;
+                } catch (Exception e) {
+                    error = "Error deleting message: " + e.getMessage();
+                    Log.e(TAG, "Delete message error", e);
+                    return null;
+                }
+            }
+
+            @Override
+            protected void onPostExecute(Void result) {
+                if (error != null) {
+                    callback.onError(error);
+                } else {
+                    callback.onSuccess(null);
                 }
             }
         }.execute();

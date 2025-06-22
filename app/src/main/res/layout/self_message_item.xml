@@ -47,7 +47,7 @@
                     android:layout_height="wrap_content"
                     android:textColor="#ACADB7"
                     android:textSize="15sp"
-                    android:textStyle="italic" />
+                    android:textStyle="bold" />
 
                 <!-- Разделитель (·) -->
                 <TextView

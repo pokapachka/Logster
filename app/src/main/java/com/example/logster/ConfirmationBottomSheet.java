@@ -6,6 +6,7 @@ import android.animation.ValueAnimator;
 import android.app.Activity;
 import android.content.Context;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
@@ -18,13 +19,10 @@ public class ConfirmationBottomSheet {
     private static final String TAG = "ConfirmationBottomSheet";
     private final Context context;
     private View sheetView;
+    private View dimView;
     private FrameLayout.LayoutParams params;
     private final FrameLayout rootLayout;
     private boolean isShowing = false;
-    private final int sheetHeightDp = 250; // Высота листа
-    private int initialTopMargin;
-    private int finalTopMargin;
-    private int screenHeight;
     private Runnable onConfirmAction;
     private Runnable onCancelAction;
     private ValueAnimator currentAnimator;
@@ -32,7 +30,6 @@ public class ConfirmationBottomSheet {
     public ConfirmationBottomSheet(Context context) {
         this.context = context;
         this.rootLayout = ((Activity) context).findViewById(android.R.id.content);
-        this.screenHeight = context.getResources().getDisplayMetrics().heightPixels;
     }
 
     public void show(String actionText, String itemName, String itemType, String itemId, Runnable confirmAction, Runnable cancelAction) {
@@ -43,13 +40,19 @@ public class ConfirmationBottomSheet {
         this.onConfirmAction = confirmAction;
         this.onCancelAction = cancelAction;
 
+        // Добавляем затемнённый фоновый слой
+        dimView = new View(context);
+        dimView.setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        dimView.setBackgroundColor(0x80000000); // Полупрозрачный чёрный
+        dimView.setClickable(true);
+        rootLayout.addView(dimView);
+
         // Инициализация листа
         sheetView = LayoutInflater.from(context).inflate(R.layout.verify_item, null);
         params = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        initialTopMargin = screenHeight; // Начальная позиция за экраном
-        finalTopMargin = screenHeight - dpToPx(sheetHeightDp); // Конечная позиция внизу экрана
-        params.topMargin = initialTopMargin;
+        params.gravity = Gravity.BOTTOM; // Фиксируем к нижнему краю
         sheetView.setLayoutParams(params);
+        sheetView.setTranslationY(rootLayout.getHeight()); // Начальная позиция за экраном снизу
         rootLayout.addView(sheetView);
 
         // Настройка UI
@@ -88,34 +91,30 @@ public class ConfirmationBottomSheet {
             });
         }
 
-        // Установка максимальной высоты
+        // Анимация появления
         sheetView.post(() -> {
-            params.height = dpToPx(sheetHeightDp);
-            sheetView.setLayoutParams(params);
+            float sheetHeight = sheetView.getMeasuredHeight();
+            ValueAnimator animator = ValueAnimator.ofFloat(sheetHeight, 0f);
+            animator.setDuration(300);
+            animator.setInterpolator(new DecelerateInterpolator());
+            animator.addUpdateListener(animation -> {
+                sheetView.setTranslationY((float) animation.getAnimatedValue());
+            });
+            animator.addListener(new AnimatorListenerAdapter() {
+                @Override
+                public void onAnimationStart(Animator animation) {
+                    isShowing = true;
+                }
+            });
+            currentAnimator = animator;
+            animator.start();
+            Log.d(TAG, "Лист показан для: " + itemType + ", ID=" + itemId + ", height=" + sheetHeight);
         });
 
         sheetView.setVisibility(View.VISIBLE);
         sheetView.bringToFront();
-
-        // Анимация появления
-        ValueAnimator animator = ValueAnimator.ofInt(initialTopMargin, finalTopMargin);
-        animator.setDuration(300);
-        animator.setInterpolator(new DecelerateInterpolator());
-        animator.addUpdateListener(animation -> {
-            params.topMargin = (int) animation.getAnimatedValue();
-            sheetView.setLayoutParams(params);
-        });
-        animator.addListener(new AnimatorListenerAdapter() {
-            @Override
-            public void onAnimationStart(Animator animation) {
-                isShowing = true;
-            }
-        });
-        currentAnimator = animator;
-        animator.start();
-        Log.d(TAG, "Лист показан для: " + itemType + ", ID=" + itemId);
-
-        // Обработка смахивания
+        dimView.bringToFront();
+        sheetView.bringToFront();
         setSwipeListener(deleteButton, cancelButton, itemType, itemId);
     }
 
@@ -128,76 +127,83 @@ public class ConfirmationBottomSheet {
             return;
         }
 
-        // Отменяем текущую анимацию
         if (currentAnimator != null && currentAnimator.isRunning()) {
             currentAnimator.cancel();
             Log.d(TAG, "Текущая анимация отменена");
         }
 
-        // Анимация скрытия
-        ValueAnimator animator = ValueAnimator.ofInt(params.topMargin, screenHeight);
-        animator.setDuration(300); // Ускорено до 300 мс
+        // Проверяем, что sheetView не null перед использованием
+        float sheetHeight = sheetView != null ? sheetView.getMeasuredHeight() : 0f;
+        if (sheetHeight == 0f) {
+            Log.w(TAG, "sheetHeight=0, пропускаем анимацию");
+            cleanupViews(onHidden);
+            return;
+        }
+
+        ValueAnimator animator = ValueAnimator.ofFloat(0f, sheetHeight);
+        animator.setDuration(300);
         animator.setInterpolator(new DecelerateInterpolator());
         animator.addUpdateListener(animation -> {
             if (sheetView != null) {
-                params.topMargin = (int) animation.getAnimatedValue();
-                sheetView.setLayoutParams(params);
+                sheetView.setTranslationY((float) animation.getAnimatedValue());
             }
         });
         animator.addListener(new AnimatorListenerAdapter() {
             @Override
             public void onAnimationEnd(Animator animation) {
-                if (sheetView != null) {
-                    sheetView.setVisibility(View.GONE);
-                    try {
-                        rootLayout.removeView(sheetView);
-                    } catch (IllegalArgumentException e) {
-                        Log.w(TAG, "sheetView уже удален из rootLayout: " + e.getMessage());
-                    }
-                }
-                isShowing = false;
-                sheetView = null;
-                currentAnimator = null;
-                if (onHidden != null) {
-                    onHidden.run();
-                }
-                Log.d(TAG, "Лист скрыт");
+                cleanupViews(onHidden);
             }
 
             @Override
             public void onAnimationCancel(Animator animation) {
-                if (sheetView != null) {
-                    sheetView.setVisibility(View.GONE);
-                    try {
-                        rootLayout.removeView(sheetView);
-                    } catch (IllegalArgumentException e) {
-                        Log.w(TAG, "sheetView уже удален из rootLayout при отмене: " + e.getMessage());
-                    }
-                }
-                isShowing = false;
-                sheetView = null;
-                currentAnimator = null;
-                Log.d(TAG, "Анимация скрытия отменена");
+                cleanupViews(null);
             }
         });
         currentAnimator = animator;
         animator.start();
     }
 
+    private void cleanupViews(Runnable onHidden) {
+        if (sheetView != null) {
+            sheetView.setVisibility(View.GONE);
+            try {
+                rootLayout.removeView(sheetView);
+            } catch (IllegalArgumentException e) {
+                Log.w(TAG, "sheetView уже удалён из rootLayout: " + e.getMessage());
+            }
+            sheetView = null; // Явно обнуляем после удаления
+        }
+        if (dimView != null) {
+            try {
+                rootLayout.removeView(dimView);
+            } catch (IllegalArgumentException e) {
+                Log.w(TAG, "dimView уже удалён из rootLayout: " + e.getMessage());
+            }
+            dimView = null; // Явно обнуляем после удаления
+        }
+        isShowing = false;
+        currentAnimator = null;
+        if (onHidden != null) {
+            onHidden.run();
+        }
+        Log.d(TAG, "Лист скрыт");
+    }
+
     private void resetPosition() {
         if (sheetView == null) return;
 
-        // Отменяем текущую анимацию
         if (currentAnimator != null && currentAnimator.isRunning()) {
             currentAnimator.cancel();
+            Log.d(TAG, "Анимация возврата отменена");
         }
 
-        ValueAnimator animator = ValueAnimator.ofInt(params.topMargin, finalTopMargin);
-        animator.setDuration(300);
+        ValueAnimator animator = ValueAnimator.ofFloat(sheetView.getTranslationY(), 0f);
+        animator.setDuration(200); // Ускоряем для плавности
         animator.setInterpolator(new DecelerateInterpolator());
         animator.addUpdateListener(animation -> {
-            params.topMargin = (int) animation.getAnimatedValue();
-            sheetView.setLayoutParams(params);
+            if (sheetView != null) {
+                sheetView.setTranslationY((float) animation.getAnimatedValue());
+            }
         });
         currentAnimator = animator;
         animator.start();
@@ -206,45 +212,62 @@ public class ConfirmationBottomSheet {
     private void setSwipeListener(View deleteButton, View cancelButton, String itemType, String itemId) {
         sheetView.setOnTouchListener(new View.OnTouchListener() {
             private float startY;
-            private int startTopMargin;
+            private float startTranslationY;
             private boolean isDragging = false;
 
             @Override
             public boolean onTouch(View v, MotionEvent event) {
                 if (isInteractiveElementTouched(event, deleteButton, cancelButton)) {
-                    return false; // Пропускаем клик по кнопкам
+                    return false;
                 }
 
                 switch (event.getAction()) {
                     case MotionEvent.ACTION_DOWN:
                         startY = event.getRawY();
-                        startTopMargin = params.topMargin;
+                        startTranslationY = sheetView.getTranslationY();
                         isDragging = true;
                         if (currentAnimator != null && currentAnimator.isRunning()) {
                             currentAnimator.cancel();
+                            Log.d(TAG, "Анимация отменена перед началом свайпа");
                         }
                         return true;
                     case MotionEvent.ACTION_MOVE:
                         if (!isDragging) return false;
                         float deltaY = event.getRawY() - startY;
-                        int newTopMargin = (int) (startTopMargin + deltaY);
-                        if (newTopMargin >= finalTopMargin) {
-                            params.topMargin = newTopMargin;
-                            sheetView.setLayoutParams(params);
-                            Log.d(TAG, "ACTION_MOVE: deltaY=" + deltaY + ", newTopMargin=" + newTopMargin);
+                        float newTranslationY = startTranslationY + deltaY;
+                        if (newTranslationY >= 0) { // Ограничиваем движение вверх
+                            sheetView.setTranslationY(newTranslationY);
+                            Log.d(TAG, "ACTION_MOVE: deltaY=" + deltaY + ", newTranslationY=" + newTranslationY);
                         }
                         return true;
                     case MotionEvent.ACTION_UP:
                         if (!isDragging) return false;
                         isDragging = false;
-                        if (params.topMargin > finalTopMargin + dpToPx(100)) {
-                            hide(() -> {
-                                if (onCancelAction != null) {
-                                    onCancelAction.run();
-                                    Log.d(TAG, "Отменено действие: " + itemType + ", ID=" + itemId);
+                        float currentTranslationY = sheetView.getTranslationY();
+                        float sheetHeight = sheetView.getMeasuredHeight();
+                        if (currentTranslationY > dpToPx(100)) { // Смахивание вниз
+                            // Плавное скрытие
+                            ValueAnimator animator = ValueAnimator.ofFloat(currentTranslationY, sheetHeight);
+                            animator.setDuration(200); // Ускоряем для плавности
+                            animator.setInterpolator(new DecelerateInterpolator());
+                            animator.addUpdateListener(animation -> {
+                                if (sheetView != null) {
+                                    sheetView.setTranslationY((float) animation.getAnimatedValue());
                                 }
                             });
+                            animator.addListener(new AnimatorListenerAdapter() {
+                                @Override
+                                public void onAnimationEnd(Animator animation) {
+                                    if (onCancelAction != null) {
+                                        onCancelAction.run();
+                                    }
+                                    cleanupViews(null);
+                                }
+                            });
+                            currentAnimator = animator;
+                            animator.start();
                         } else {
+                            // Плавный возврат в исходное положение
                             resetPosition();
                         }
                         return true;
