@@ -7,8 +7,6 @@ import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.ViewTreeObserver;
-import android.view.WindowManager;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
 import android.widget.FrameLayout;
@@ -31,8 +29,6 @@ public class BottomSheets {
     private int initialTopMargin;
     private FrameLayout.LayoutParams params;
     private boolean isShowing;
-    private boolean isTransitionInProgress = false;
-    private ViewTreeObserver.OnGlobalLayoutListener keyboardLayoutListener;
 
     public BottomSheets(Activity activity) {
         this(activity, R.layout.widgets);
@@ -51,23 +47,6 @@ public class BottomSheets {
         initialTopMargin = dpToPx(activity, 70);
         params.topMargin = initialTopMargin;
         isShowing = false;
-        setupKeyboardListener(); // Настраиваем слушатель клавиатуры
-    }
-
-    private void setupKeyboardListener() {
-        keyboardLayoutListener = () -> {
-            int newHeight = rootLayout.getHeight();
-            if (newHeight > 0 && sheetView != null && isShowing) {
-                // Пересчитываем максимальную высоту BottomSheet
-                int maxHeight = newHeight - initialTopMargin;
-                FrameLayout.LayoutParams heightParams = new FrameLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT, maxHeight);
-                heightParams.topMargin = params.topMargin;
-                sheetView.setLayoutParams(heightParams);
-                Log.d(TAG, "Adjusted BottomSheet height due to keyboard: " + maxHeight);
-            }
-        };
-        rootLayout.getViewTreeObserver().addOnGlobalLayoutListener(keyboardLayoutListener);
     }
 
     public void setContentView(View view) {
@@ -131,8 +110,6 @@ public class BottomSheets {
             Log.e(TAG, "show: sheetView or rootLayout is null");
             return;
         }
-        // Настраиваем поведение клавиатуры
-        activity.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         screenHeight = rootLayout.getHeight();
         if (screenHeight == 0) {
             screenHeight = activity.getResources().getDisplayMetrics().heightPixels;
@@ -149,6 +126,7 @@ public class BottomSheets {
         }
         sheetView.setVisibility(View.VISIBLE);
         sheetView.bringToFront();
+        // Поднимаем iconContainer поверх sheetView
         ValueAnimator animator = ValueAnimator.ofInt(screenHeight, initialTopMargin);
         animator.setDuration(300);
         animator.addUpdateListener(animation -> {
@@ -170,8 +148,6 @@ public class BottomSheets {
             if (onHidden != null) onHidden.run();
             return;
         }
-        // Настраиваем поведение клавиатуры
-        activity.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         screenHeight = rootLayout.getHeight();
         if (screenHeight == 0) {
             screenHeight = activity.getResources().getDisplayMetrics().heightPixels;
@@ -256,6 +232,7 @@ public class BottomSheets {
             public void onAnimationEnd(android.animation.Animator animation) {
                 if (sheetView != null && sheetView.getParent() != null) {
                     rootLayout.removeView(sheetView);
+                    Log.d(TAG, "Removed sheetView from rootLayout on hide");
                     Log.d(TAG, "Removed sheetView from rootLayout on hide, child count: " + rootLayout.getChildCount());
                 }
                 isShowing = false;
@@ -338,13 +315,6 @@ public class BottomSheets {
             if (onComplete != null) onComplete.run();
             return;
         }
-        if (isTransitionInProgress) {
-            Log.d(TAG, "Transition already in progress, ignoring new request");
-            return;
-        }
-        isTransitionInProgress = true;
-        // Настраиваем поведение клавиатуры
-        activity.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         screenHeight = rootLayout.getHeight();
         if (screenHeight == 0) {
             screenHeight = activity.getResources().getDisplayMetrics().heightPixels;
@@ -355,6 +325,7 @@ public class BottomSheets {
         newView.setVisibility(View.GONE);
         if (newView.getParent() == null) {
             rootLayout.addView(newView);
+            Log.d(TAG, "Added newView to rootLayout in showWithHorizontalTransition");
             Log.d(TAG, "Added newView to rootLayout in showWithHorizontalTransition, child count: " + rootLayout.getChildCount());
         }
         int maxHeight = screenHeight - initialTopMargin;
@@ -366,7 +337,8 @@ public class BottomSheets {
         final int[] animationCount = {2};
         Animation.AnimationListener animationListener = new Animation.AnimationListener() {
             @Override
-            public void onAnimationStart(Animation animation) {}
+            public void onAnimationStart(Animation animation) {
+            }
 
             @Override
             public void onAnimationEnd(Animation animation) {
@@ -374,6 +346,7 @@ public class BottomSheets {
                 if (animationCount[0] == 0) {
                     if (sheetView != null && sheetView.getParent() != null) {
                         rootLayout.removeView(sheetView);
+                        Log.d(TAG, "Removed old sheetView after horizontal transition");
                         Log.d(TAG, "Removed old sheetView after horizontal transition, child count: " + rootLayout.getChildCount());
                         for (int i = 0; i < rootLayout.getChildCount(); i++) {
                             View child = rootLayout.getChildAt(i);
@@ -404,7 +377,7 @@ public class BottomSheets {
                         onComplete.run();
                     }
                     isShowing = true;
-                    isTransitionInProgress = false; // Сбрасываем флаг после завершения перехода
+                    // Заполняем данные, если новый экран — exercise_description
                     if (sheetView.getId() == R.id.exerciseDescriprion && activity instanceof MainActivity) {
                         populateExerciseDescription();
                         Log.d(TAG, "Populated exercise description after horizontal transition");
@@ -420,7 +393,8 @@ public class BottomSheets {
             }
 
             @Override
-            public void onAnimationRepeat(Animation animation) {}
+            public void onAnimationRepeat(Animation animation) {
+            }
         };
         slideOut.setAnimationListener(animationListener);
         slideIn.setAnimationListener(animationListener);
@@ -434,11 +408,6 @@ public class BottomSheets {
     }
 
     public void switchSheet(int layoutId, String data, boolean useHorizontalTransition, int exitAnim, int enterAnim) {
-        if (isTransitionInProgress) {
-            Log.d(TAG, "SwitchSheet ignored: transition already in progress");
-            return;
-        }
-        isTransitionInProgress = true;
         // Hide keyboard based on activity type
         if (activity instanceof MainActivity) {
             ((MainActivity) activity).hideKeyboard();
@@ -453,8 +422,7 @@ public class BottomSheets {
             newView = LayoutInflater.from(activity).inflate(layoutId, null);
         } catch (Exception e) {
             Log.e(TAG, "Failed to inflate layout ID: " + layoutId + ", Error: " + e.getMessage(), e);
-            isTransitionInProgress = false; // Сбрасываем флаг при ошибке
-            return;
+            return; // Prevent further execution
         }
 
         // Set listener for close button
@@ -474,36 +442,26 @@ public class BottomSheets {
             Log.d(TAG, "Handling exercise description screen");
             setContentView(newView);
             show();
-            isTransitionInProgress = false;
         } else if (layoutId == R.layout.add_exercises && activity instanceof MainActivity) {
             Log.d(TAG, "Handling add exercises screen");
             setContentView(newView);
             show();
-            isTransitionInProgress = false;
         } else if (layoutId == R.layout.autorization && activity instanceof ChatActivity) {
             Authorization auth = new Authorization(activity);
             if (useHorizontalTransition && exitAnim != 0 && enterAnim != 0) {
-                showWithHorizontalTransition(exitAnim, enterAnim, newView, () -> {
-                    auth.show();
-                    isTransitionInProgress = false;
-                });
+                showWithHorizontalTransition(exitAnim, enterAnim, newView, () -> auth.show());
             } else {
                 setContentView(newView);
                 auth.show();
-                isTransitionInProgress = false;
             }
             Log.d(TAG, "Initialized authorization screen");
         } else if (layoutId == R.layout.registration && activity instanceof ChatActivity) {
             Registration reg = new Registration(activity);
             if (useHorizontalTransition && exitAnim != 0 && enterAnim != 0) {
-                showWithHorizontalTransition(exitAnim, enterAnim, newView, () -> {
-                    reg.show();
-                    isTransitionInProgress = false;
-                });
+                showWithHorizontalTransition(exitAnim, enterAnim, newView, () -> reg.show());
             } else {
                 setContentView(newView);
                 reg.show();
-                isTransitionInProgress = false;
             }
             Log.d(TAG, "Initialized registration screen");
         } else if (layoutId == R.layout.profile || layoutId == R.layout.profile_tag ||
@@ -517,28 +475,26 @@ public class BottomSheets {
                 }
                 if (useHorizontalTransition && exitAnim != 0 && enterAnim != 0) {
                     showWithHorizontalTransition(exitAnim, enterAnim, newView,
-                            () -> {
-                                profile.setupProfileSheet(layoutId, data);
-                                isTransitionInProgress = false;
-                            });
+                            () -> profile.setupProfileSheet(layoutId, data));
                 } else {
                     setContentView(newView);
                     profile.setupProfileSheet(layoutId, data);
                     show();
-                    isTransitionInProgress = false;
                 }
                 Log.d(TAG, "Initialized profile screen: " + layoutId);
             } else {
                 Log.e(TAG, "Activity is not ChatActivity for profile layout: " + layoutId);
                 setContentView(newView);
                 show();
-                isTransitionInProgress = false;
             }
         } else if (layoutId == R.layout.profile_user && activity instanceof ChatActivity) {
             Log.d(TAG, "Handling profile_user screen");
             View back = newView.findViewById(R.id.back);
             if (back != null) {
-                back.setOnClickListener(v -> hide(null));
+                back.setOnClickListener(v -> {
+                    // Закрываем текущий BottomSheet с анимацией вниз
+                    hide(null);
+                });
             }
 
             // Загружаем данные профиля
@@ -548,14 +504,20 @@ public class BottomSheets {
 
             if (profileImage != null && tagText != null && bioText != null) {
                 if (data != null) {
+                    // Загружаем данные другого пользователя по userId
                     RegisterContext.fetchProfileById(activity, data, new RegisterContext.Callback<RegisterContext.ProfileData>() {
                         @Override
                         public void onSuccess(RegisterContext.ProfileData profileData) {
                             ((Activity) activity).runOnUiThread(() -> {
+                                // Устанавливаем тег
                                 String tag = profileData.username != null ? "@" + profileData.username : "pokapachka";
                                 tagText.setText(tag);
+
+                                // Устанавливаем био
                                 String bio = profileData.bio != null && !profileData.bio.isEmpty() ? profileData.bio : "Биография не указана";
                                 bioText.setText(bio);
+
+                                // Устанавливаем изображение профиля
                                 String imageUrl = profileData.imageUrl;
                                 if (imageUrl != null && !imageUrl.isEmpty()) {
                                     Glide.with(activity)
@@ -576,6 +538,7 @@ public class BottomSheets {
                             ((Activity) activity).runOnUiThread(() -> {
                                 Log.e(TAG, "Ошибка загрузки профиля пользователя: " + error);
                                 Toast.makeText(activity, "Ошибка загрузки профиля", Toast.LENGTH_SHORT).show();
+                                // Устанавливаем значения по умолчанию
                                 tagText.setText("pokapachka");
                                 bioText.setText("Биография не указана");
                                 profileImage.setImageResource(R.drawable.default_profile);
@@ -583,6 +546,7 @@ public class BottomSheets {
                         }
                     });
                 } else {
+                    // Загружаем данные текущего пользователя
                     ChatActivity chatActivity = (ChatActivity) activity;
                     String imageUrl = chatActivity.getProfileImageUrl();
                     String tag = chatActivity.getProfileTag();
@@ -607,14 +571,19 @@ public class BottomSheets {
                 Toast.makeText(activity, "Ошибка загрузки интерфейса профиля", Toast.LENGTH_SHORT).show();
             }
 
+            // Используем стандартную анимацию BottomSheet (снизу вверх)
+            setContentView(newView);
+            show();
+            Log.d(TAG, "Initialized profile_user screen");
+        }
+        else {
             if (useHorizontalTransition && exitAnim != 0 && enterAnim != 0) {
-                showWithHorizontalTransition(exitAnim, enterAnim, newView, () -> isTransitionInProgress = false);
+                showWithHorizontalTransition(exitAnim, enterAnim, newView, null);
             } else {
                 setContentView(newView);
                 show();
-                isTransitionInProgress = false;
             }
-            Log.d(TAG, "Initialized profile_user screen");
+            Log.d(TAG, "Handling generic layout with ID: " + layoutId);
         }
     }
 }
