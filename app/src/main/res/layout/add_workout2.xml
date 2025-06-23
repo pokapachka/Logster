@@ -62,7 +62,7 @@
         android:layout_height="wrap_content"
         android:inputType="text"
         android:textSize="20sp"
-        android:textColor="#4F4F54"
+        android:textColor="#FFFFFF"
         android:layout_marginTop="30dp"
         android:layout_below="@id/description"/>
 

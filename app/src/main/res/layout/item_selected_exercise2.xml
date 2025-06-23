@@ -7,7 +7,7 @@
         android:id="@+id/checkbox_selected"
         android:layout_width="50dp"
         android:layout_height="50dp"
-        android:background="@drawable/check"
+        android:background="@drawable/workout"
         android:layout_centerVertical="true" />
 
     <TextView
@@ -44,14 +44,6 @@
         android:textStyle="bold"
         android:layout_marginStart="10dp"
         android:visibility="gone"/>
-
-    <ImageView
-        android:id="@+id/add_button_selected"
-        android:layout_width="20dp"
-        android:layout_height="20dp"
-        android:background="@drawable/add_ex"
-        android:layout_centerVertical="true"
-        android:layout_alignParentEnd="true" />
 
 
 </RelativeLayout>

@@ -61,7 +61,7 @@
         android:layout_marginTop="30dp"
         android:layout_marginEnd="15dp"
         android:inputType="text"
-        android:textColor="#4F4F54"
+        android:textColor="#FFFFFF"
         android:textColorHint="#4F4F54"
         android:textSize="20sp" />
 
